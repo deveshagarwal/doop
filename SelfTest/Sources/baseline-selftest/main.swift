@@ -36,10 +36,11 @@ check(recs.count >= 80, "recovery scored most days", "\(recs.count)")
 let meanRec = Stats.mean(recs.map(Double.init))
 check((45...75).contains(meanRec), "average recovery in a WHOOP-like range", "\(meanRec)")
 
-let illnessKeys = (14...15).map { DayKey.addDays(end, -$0) }
+let illnessKeys = (11...15).map { DayKey.addDays(end, -$0) }   // planted episode
 let illLevels = illnessKeys.compactMap { a.scores[$0]?.illness.level }
 check(illLevels.contains(.alert), "planted illness triggers an alert", "\(illLevels)")
-let illRec = illnessKeys.compactMap { a.scores[$0]?.recovery?.score }
+check(a.scores[DayKey.addDays(end, -15)]?.illness.level != .alert, "first night alone never alerts (needs persistence)")
+let illRec = (13...14).compactMap { a.scores[DayKey.addDays(end, -$0)]?.recovery?.score }
 check(illRec.allSatisfy { $0 < 34 }, "illness days are red", "\(illRec)")
 let falseAlerts = a.orderedKeys.filter { k in
     a.scores[k]?.illness.level == .alert && !(DayKey.addDays(end, -16)...DayKey.addDays(end, -10)).contains(k)

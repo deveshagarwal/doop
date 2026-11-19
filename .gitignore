@@ -4,3 +4,5 @@ xcuserdata/
 DerivedData/
 .swiftpm/
 .build/
+Validation/data/
+Validation/.build/

@@ -56,6 +56,7 @@ public enum Analyzer {
         var debt = 0.0
         var nights: [SleepSession] = []
         var needTonight = settings.baseSleepNeedHours * 60
+        var previousIllness: IllnessSignal?
 
         for (i, k) in keys.enumerated() {
             let d = days[k] ?? DayRecord(date: k)
@@ -68,6 +69,10 @@ public enum Analyzer {
 
             let recovery = RecoveryEngine.score(day: d, book: book, sleepPerformance: sleep?.performance)
             let strain = strains[k] ?? .zero
+            let rawIllness = IllnessDetector.evaluate(day: d, book: book, previousDay: days[DayKey.addDays(k, -1)],
+                                                      loggedYesterday: journal[DayKey.addDays(k, -1)]?.factors ?? [])
+            let illness = IllnessDetector.withPersistence(today: rawIllness, yesterday: previousIllness)
+            previousIllness = days[k] == nil ? nil : rawIllness
             needTonight = SleepEngine.need(base: settings.baseSleepNeedHours, debtMinutes: debt, previousStrain: strain.strain)
 
             scores[k] = DayScore(
@@ -75,8 +80,7 @@ public enum Analyzer {
                 strainTarget: TrainingLoad.strainTarget(recovery: recovery?.score, load: loads[i]),
                 sleep: sleep, sleepNeedTonight: needTonight,
                 bedtimeTonight: SleepEngine.recommendedBedtime(needMinutes: needTonight, recentNights: nights, on: k),
-                illness: IllnessDetector.evaluate(day: d, book: book, previousDay: days[DayKey.addDays(k, -1)],
-                                                  loggedYesterday: journal[DayKey.addDays(k, -1)]?.factors ?? []),
+                illness: illness,
                 load: loads[i])
         }
 

@@ -80,7 +80,7 @@ public enum IllnessDetector {
         let level: IllnessSignal.Level
         if (specific && groups.count >= 2) || groups.count >= 3 {
             level = .alert
-        } else if groups.count == 2 || groups.values.contains(where: { $0 >= 2.5 }) || rhrPersistent || specific {
+        } else if groups.count == 2 || groups.values.contains(where: { $0 >= 2.5 }) || rhrPersistent {
             level = .watch
         } else {
             level = .clear
@@ -97,5 +97,15 @@ public enum IllnessDetector {
         case .alert: message = "\(names) are all off your baseline at once. This pattern often shows up early in an illness. Prioritize sleep, hydration and an easy day."
         }
         return IllnessSignal(level: level, score: score, deviations: devs, message: message)
+    }
+
+    /// Real wrist data is noisy (LifeSnaps, 71 Fitbit users: night-to-night skin temp SD ≈0.5 °C,
+    /// breathing ≈1 rpm), so two signals line up by chance on ~3% of nights. Illness persists;
+    /// noise doesn't. A full alert therefore needs the previous night to have been off too.
+    public static func withPersistence(today: IllnessSignal, yesterday: IllnessSignal?) -> IllnessSignal {
+        guard today.level == .alert, (yesterday?.level ?? .clear) == .clear else { return today }
+        let names = today.deviations.map(\.metric).joined(separator: ", ")
+        return IllnessSignal(level: .watch, score: today.score, deviations: today.deviations,
+                             message: "\(names) all moved off your baseline last night. One night can be noise; if it repeats tonight this becomes an alert.")
     }
 }
