@@ -1,8 +1,10 @@
 import SwiftUI
 import BackgroundTasks
+import UserNotifications
 
 @main
 struct BaselineApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model = AppModel()
     @Environment(\.scenePhase) private var phase
     static let refreshID = "com.dagarwal.baseline.refresh"
@@ -23,7 +25,7 @@ struct BaselineApp: App {
             RootView()
                 .environment(model)
                 .preferredColorScheme(.dark)
-                .tint(Theme.green)
+                .tint(Ember.ember)
                 .onAppear {
                     AppModel.shared = model
                     if model.hasAppleHealthData { model.startBackgroundDelivery() }
@@ -44,8 +46,30 @@ struct BaselineApp: App {
 }
 
 extension AppModel {
-    /// Lets the background task reach the live model.
+    /// Lets the background task and notification handler reach the live model.
     static weak var shared: AppModel?
+}
+
+/// Answers the one question straight from the notification, without opening the app.
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let info = response.notification.request.content.userInfo
+        guard let day = info["day"] as? String, let factor = info["factor"] as? String,
+              ["YES", "NO"].contains(response.actionIdentifier) else { return }
+        let yes = response.actionIdentifier == "YES"
+        await MainActor.run {
+            AppModel.shared?.answer(DailyQuestion(day: day, factor: factor, prompt: "", evidence: ""), yes: yes)
+        }
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
 }
 
 struct RootView: View {
@@ -54,11 +78,11 @@ struct RootView: View {
     var body: some View {
         @Bindable var model = model
         TabView(selection: $model.selectedTab) {
-            TodayView().tabItem { Label("Today", systemImage: "circle.circle") }.tag(AppModel.Tab.today)
-            TrainingView().tabItem { Label("Training", systemImage: "figure.run") }.tag(AppModel.Tab.training)
-            HealthView().tabItem { Label("Health", systemImage: "heart.text.square") }.tag(AppModel.Tab.health)
-            JournalView().tabItem { Label("Journal", systemImage: "book.closed") }.tag(AppModel.Tab.journal)
-            CoachView().tabItem { Label("Coach", systemImage: "sparkles") }.tag(AppModel.Tab.coach)
+            Tab("Today", systemImage: "circle.circle", value: AppModel.Tab.today) { TodayTab() }
+            Tab("Sleep", systemImage: "moon", value: AppModel.Tab.sleep) { SleepTab() }
+            Tab("Train", systemImage: "figure.run", value: AppModel.Tab.train) { TrainTab() }
+            Tab("Learn", systemImage: "sparkle.magnifyingglass", value: AppModel.Tab.learn) { LearnTab() }
+            Tab("Body", systemImage: "heart.text.square", value: AppModel.Tab.body) { BodyTab() }
         }
         .alert("Something went wrong", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }

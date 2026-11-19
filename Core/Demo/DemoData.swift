@@ -41,18 +41,20 @@ public enum DemoData {
             var hrv = 62 + 6 * fitness
             var rhr = 54 - 2 * fitness
             var resp = 14.2, temp = 33.9, spo2 = 96.5
-            if prevFactors.contains("alcohol") { hrv *= 0.82; rhr += 3.5 }
-            if prevFactors.contains("late_meal") { hrv *= 0.93; rhr += 1.5 }
-            if prevFactors.contains("high_stress") { hrv *= 0.92 }
-            if prevFactors.contains("meditation") { hrv *= 1.05 }
+            if prevFactors.contains("alcohol") { hrv *= 0.88; rhr += 2.5 }
+            if prevFactors.contains("late_meal") { hrv *= 0.95; rhr += 1 }
+            if prevFactors.contains("late_meeting") { hrv *= 0.97 }
+            if prevFactors.contains("mindful") { hrv *= 1.03 }
+            if prevFactors.contains("hot_night") { hrv *= 0.96; rhr += 0.8 }
+            if prevFactors.contains("travel") { hrv *= 0.92; rhr += 2 }
             if prevHard { hrv *= 0.93; rhr += 1.5 }
             let sick = i - illnessStart
             if (0...4).contains(sick) {
                 let sev = [0.5, 1.0, 1.0, 0.7, 0.35][sick]
                 hrv *= 1 - 0.3 * sev; rhr += 7 * sev; resp += 1.6 * sev; temp += 0.7 * sev; spo2 -= 1.2 * sev
             }
-            d.hrvRmssd = max(20, rng.normal(hrv, 4.5))
-            d.restingHR = rng.normal(rhr, 1.2)
+            d.hrvRmssd = max(20, rng.normal(hrv, 8))
+            d.restingHR = rng.normal(rhr, 2.0)
             d.respiratoryRate = rng.normal(resp, 0.25)
             d.skinTemp = rng.normal(temp, 0.12)
             d.spo2Avg = rng.normal(spo2, 0.4)
@@ -62,7 +64,7 @@ public enum DemoData {
             // Sleep: bed around 23:15, ~7h asleep, shorter after alcohol.
             var asleep = rng.normal(425, 35)
             if prevFactors.contains("alcohol") { asleep -= 25 }
-            if prevFactors.contains("screens_in_bed") { asleep -= 15 }
+            if prevFactors.contains("late_caffeine") { asleep -= 22 }
             let bed = midnight.addingTimeInterval(rng.normal(-45, 25) * 60)
             d.sleepSessions = [makeSleep(bed: bed, asleepMinutes: asleep, deepBoost: prevFactors.contains("alcohol") ? -0.4 : 0, rng: &rng, id: key)]
 
@@ -93,17 +95,46 @@ public enum DemoData {
             d.hrSyncedAt = Date()
             days[key] = d
 
-            // Journal for the day (effects land on the next record).
+            // The day's habits. Only alcohol goes in the journal (as if you answered the one question);
+            // everything else is planted as data the auto-logger has to find.
             var f: Set<String> = []
             let weekend = weekday == 6 || weekday == 7
             if rng.chance(weekend ? 0.55 : 0.12) { f.insert("alcohol") }
-            if rng.chance(0.25) { f.insert("late_meal") }
-            if rng.chance(0.3) { f.insert("screens_in_bed") }
-            if rng.chance(0.4) { f.insert("meditation") }
-            if rng.chance(weekend ? 0.05 : 0.25) { f.insert("high_stress") }
-            if rng.chance(0.5) { f.insert("sunlight_am") }
-            if (0...3).contains(sick) { f.insert("feeling_sick") }
-            if i < keys.count - 1 { journal[key] = JournalEntry(date: key, factors: f) }
+            let lateDinner = rng.chance(0.25), lateCoffee = rng.chance(weekend ? 0.1 : 0.3)
+            if lateDinner { f.insert("late_meal") }
+            if lateCoffee { f.insert("late_caffeine") }
+            var meals = [Meal(time: midnight.addingTimeInterval(rng.normal(7.8, 0.4) * 3600), kcal: rng.normal(480, 80), proteinG: rng.normal(28, 6), caffeineMg: 95),
+                         Meal(time: midnight.addingTimeInterval(rng.normal(12.6, 0.4) * 3600), kcal: rng.normal(700, 120), proteinG: rng.normal(40, 10)),
+                         Meal(time: midnight.addingTimeInterval((lateDinner ? rng.normal(21.6, 0.3) : rng.normal(19.0, 0.4)) * 3600),
+                              kcal: rng.normal(lateDinner ? 950 : 780, 120), proteinG: rng.normal(45, 12))]
+            if lateCoffee { meals.append(Meal(time: midnight.addingTimeInterval(rng.normal(15.3, 0.4) * 3600), caffeineMg: 120)) }
+            d.meals = meals
+            d.weightKg = rng.chance(0.8) ? 80.6 - 2.2 * fitness + rng.normal(0, 0.35) : nil
+            let lateMeeting = !weekend && rng.chance(0.2)
+            if lateMeeting { f.insert("late_meeting") }
+            d.lastEventEnd = weekend ? nil : midnight.addingTimeInterval((lateMeeting ? rng.normal(20.2, 0.4) : rng.normal(17.2, 0.6)) * 3600)
+            d.eventHours = weekend ? 0 : max(0, rng.normal(4.2, 1.6))
+            let hot = rng.chance(0.12)
+            if hot { f.insert("hot_night") }
+            d.weather = DayWeather(maxTempC: rng.normal(hot ? 31 : 22, 3), nightMinTempC: hot ? rng.normal(23, 1) : rng.normal(13, 3), aqi: nil)
+            let trip = (25...29).contains(i)
+            d.timeZoneID = trip ? "America/New_York" : "America/Los_Angeles"
+            if i == 25 || i == 30 { f.insert("travel") }
+            if rng.chance(0.35) { f.insert("mindful"); d.mindfulMinutes = rng.normal(12, 4) }
+            // Steps per minute: a few walks plus the workout, for the stress engine.
+            var steps: [MinuteValue] = []
+            for _ in 0..<5 {
+                let startMin = Int(rng.normal(13 * 60, 160))
+                for m in 0..<Int(max(5, rng.normal(14, 5))) { steps.append(MinuteValue(t: midnight.addingTimeInterval(Double(startMin + m) * 60), v: rng.normal(95, 15))) }
+            }
+            for w in d.workouts where w.name == "Run" {
+                var t = w.start
+                while t < w.end { steps.append(MinuteValue(t: t, v: 160)); t = t.addingTimeInterval(60) }
+            }
+            d.stepMinutes = steps
+            days[key] = d
+
+            if i < keys.count - 1, f.contains("alcohol") { journal[key] = JournalEntry(date: key, factors: ["alcohol"]) }
             prevFactors = f
         }
         return (days, journal)

@@ -108,6 +108,50 @@ public struct Workout: Codable, Hashable, Sendable, Identifiable {
     public var durationMinutes: Double { max(0, end.timeIntervalSince(start) / 60) }
 }
 
+public struct MinuteValue: Codable, Hashable, Sendable {
+    public var t: Date
+    public var v: Double
+    public init(t: Date, v: Double) { self.t = t; self.v = v }
+}
+
+/// One logged meal or drink. Caffeine is tracked separately because its timing matters.
+public struct Meal: Codable, Hashable, Sendable {
+    public var time: Date
+    public var kcal: Double?
+    public var proteinG: Double?
+    public var caffeineMg: Double?
+    public var alcoholG: Double?
+    public init(time: Date, kcal: Double? = nil, proteinG: Double? = nil, caffeineMg: Double? = nil, alcoholG: Double? = nil) {
+        self.time = time
+        self.kcal = kcal
+        self.proteinG = proteinG
+        self.caffeineMg = caffeineMg
+        self.alcoholG = alcoholG
+    }
+}
+
+extension DayRecord {
+    public var kcalTotal: Double? {
+        let v = (meals ?? []).compactMap(\.kcal)
+        return v.isEmpty ? nil : v.reduce(0, +)
+    }
+    public var proteinTotal: Double? {
+        let v = (meals ?? []).compactMap(\.proteinG)
+        return v.isEmpty ? nil : v.reduce(0, +)
+    }
+}
+
+public struct DayWeather: Codable, Hashable, Sendable {
+    public var maxTempC: Double?
+    public var nightMinTempC: Double?
+    public var aqi: Double?
+    public init(maxTempC: Double?, nightMinTempC: Double?, aqi: Double?) {
+        self.maxTempC = maxTempC
+        self.nightMinTempC = nightMinTempC
+        self.aqi = aqi
+    }
+}
+
 // MARK: - Profile
 
 public enum BiologicalSex: String, Codable, CaseIterable, Sendable {
@@ -133,6 +177,7 @@ public struct UserSettings: Codable, Sendable, Equatable {
     public var googleClientID: String = ""
     public var notifyIllness: Bool = true
     public var notifyRecovery: Bool = true
+    public var notifyBedtime: Bool = true
 
     public init() {}
 
@@ -148,6 +193,7 @@ public struct UserSettings: Codable, Sendable, Equatable {
         googleClientID = try c.decodeIfPresent(String.self, forKey: .googleClientID) ?? d.googleClientID
         notifyIllness = try c.decodeIfPresent(Bool.self, forKey: .notifyIllness) ?? d.notifyIllness
         notifyRecovery = try c.decodeIfPresent(Bool.self, forKey: .notifyRecovery) ?? d.notifyRecovery
+        notifyBedtime = try c.decodeIfPresent(Bool.self, forKey: .notifyBedtime) ?? d.notifyBedtime
     }
 
     /// Tanaka et al. 2001: 208 − 0.7 × age.
@@ -186,6 +232,21 @@ public struct DayRecord: Codable, Sendable {
     public var syncedAt: Date?
     public var hrSyncedAt: Date?
 
+    // Added in v0.2. Optional so older saved data still decodes.
+    /// Steps per minute (non-zero minutes only), for telling stress apart from movement.
+    public var stepMinutes: [MinuteValue]?
+    /// Time zone the phone was in that day, for travel and jet-lag detection.
+    public var timeZoneID: String?
+    public var weather: DayWeather?
+    /// Meals and drinks other apps (Nourish) write to Apple Health.
+    public var meals: [Meal]?
+    /// Weigh-ins other apps (Omada) write to Apple Health, kg.
+    public var weightKg: Double?
+    public var mindfulMinutes: Double?
+    /// From the calendar: when the last timed event ended, and hours of events that day.
+    public var lastEventEnd: Date?
+    public var eventHours: Double?
+
     public init(date: String) { self.date = date }
 
     public var mainSleep: SleepSession? {
@@ -210,6 +271,14 @@ public struct DayRecord: Codable, Sendable {
         if workouts.isEmpty { workouts = other.workouts }
         if hrSamples.count < other.hrSamples.count { hrSamples = other.hrSamples }
         syncedAt = [syncedAt, other.syncedAt].compactMap { $0 }.max()
+        stepMinutes = stepMinutes ?? other.stepMinutes
+        timeZoneID = timeZoneID ?? other.timeZoneID
+        weather = weather ?? other.weather
+        meals = meals ?? other.meals
+        weightKg = weightKg ?? other.weightKg
+        mindfulMinutes = mindfulMinutes ?? other.mindfulMinutes
+        lastEventEnd = lastEventEnd ?? other.lastEventEnd
+        eventHours = eventHours ?? other.eventHours
     }
 }
 

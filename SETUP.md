@@ -33,10 +33,17 @@ The first sync pulls 90 days. Recovery shows "calibrating" until there are 5 nig
 Because the project stays in Testing mode, Google expires the sign-in every 7 days. Settings shows a Reconnect button.
 Publishing the project would need Google's verification and a security audit, which isn't worth it for one user.
 
-## 4. Coach (2 min, optional)
+## 4. Weight, meals, calendar, weather (2 min, optional)
 
-Create a key at [console.anthropic.com](https://console.anthropic.com) → Settings → Coach → paste → Save.
-Each question sends roughly 1–2k tokens of summarized numbers; it never sends raw heart-rate streams.
+- **Omada:** in the Omada app, Settings → Health Integration → Share with Health App, turn on weight.
+- **Nourish:** check its Health settings allow *writing* nutrition (energy, protein, caffeine). If it only reads, meals won't appear.
+- **Calendar and weather:** Baseline → Settings → Connect Calendar / Allow approximate location.
+
+## 5. Widgets
+
+Long-press the lock screen or home screen → add Baseline. The widget shares data with the app through an App
+Group; with a free Apple ID, select your team for both the Baseline and BaselineWidget targets. If signing the
+App Group fails, the app still works; only the widgets go blank.
 
 ## Troubleshooting
 

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Observation
+import WidgetKit
 
 @MainActor
 @Observable
@@ -11,13 +12,14 @@ final class AppModel {
     private(set) var syncLog: [SyncLogEntry] = []
     var errorMessage: String?
     var selectedTab: Tab = .today
-    var coachStreaming = false
 
-    enum Tab: Hashable { case today, training, health, journal, coach }
+    enum Tab: Hashable { case today, sleep, train, learn, body }
 
     private let store = Store()
     private let healthKit = HealthKitSync()
     private let googleAuth = GoogleAuth()
+    private let calendar = CalendarSource()
+    let weather = WeatherSource()
     /// Demo mode runs on generated data held in memory; your real store is untouched.
     private var demo: (days: [String: DayRecord], journal: [String: JournalEntry])?
 
@@ -27,7 +29,7 @@ final class AppModel {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("--demo") { snapshot.settings.demoMode = true }
         if let i = args.firstIndex(of: "--tab"), i + 1 < args.count {
-            selectedTab = ["training": .training, "health": .health, "journal": .journal, "coach": .coach][args[i + 1]] ?? .today
+            selectedTab = ["sleep": .sleep, "train": .train, "learn": .learn, "body": .body][args[i + 1]] ?? .today
         }
         if snapshot.settings.demoMode { demo = DemoData.generate() }
         recompute()
@@ -38,50 +40,45 @@ final class AppModel {
     var settings: UserSettings { snapshot.settings }
     var days: [String: DayRecord] { demo?.days ?? snapshot.mergedDays }
     var journal: [String: JournalEntry] { demo?.journal ?? snapshot.journal }
-    var factors: [JournalFactor] { snapshot.factors }
     var today: DayScore? { analysis.latest }
     var isGoogleConnected: Bool { googleAuth.isConnected }
     var hasAppleHealthData: Bool { !snapshot.days.isEmpty }
     var hasAnyData: Bool { !days.isEmpty }
-    var hasClaudeKey: Bool { ClaudeClient.storedKey() != nil }
+    var calendarConnected: Bool { calendar.isAuthorized }
+    var isDemo: Bool { demo != nil }
 
     func record(_ key: String) -> DayRecord? { days[key] }
+
+    var askClaudeText: String { AskClaudeSummary.build(analysis: analysis, days: days, settings: settings) }
 
     // MARK: Mutations
 
     func updateSettings(_ f: (inout UserSettings) -> Void) {
         let wasDemo = snapshot.settings.demoMode
         f(&snapshot.settings)
-        if snapshot.settings.demoMode != wasDemo {
-            demo = snapshot.settings.demoMode ? DemoData.generate() : nil
-        }
+        if snapshot.settings.demoMode != wasDemo { demo = snapshot.settings.demoMode ? DemoData.generate() : nil }
         persist()
         recompute()
     }
 
-    func toggleFactor(_ id: String, on day: String) {
-        var entry = journal[day] ?? JournalEntry(date: day)
-        if entry.factors.contains(id) { entry.factors.remove(id) } else { entry.factors.insert(id) }
-        setJournal(entry)
-    }
-
-    func setNote(_ note: String, on day: String) {
-        var entry = journal[day] ?? JournalEntry(date: day)
-        entry.note = note
-        setJournal(entry)
-    }
-
-    func addFactor(_ label: String) {
-        let trimmed = label.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        let id = "custom_" + trimmed.lowercased().replacingOccurrences(of: " ", with: "_")
-        guard !factors.contains(where: { $0.id == id }) else { return }
-        snapshot.customFactors.append(JournalFactor(id: id, label: trimmed, symbol: "tag", expectedPositive: true))
+    /// The one daily question. `yes == nil` means skipped.
+    func answer(_ q: DailyQuestion, yes: Bool?) {
+        var entry = journal[q.day] ?? JournalEntry(date: q.day)
+        switch yes {
+        case true?: entry.factors.insert(q.factor); entry.denied.remove(q.factor)
+        case false?: entry.denied.insert(q.factor); entry.factors.remove(q.factor)
+        case nil: entry.denied.insert(q.factor + "_skipped")
+        }
+        if demo != nil { demo?.journal[q.day] = entry } else { snapshot.journal[q.day] = entry }
         persist()
+        recompute()
     }
 
-    private func setJournal(_ entry: JournalEntry) {
-        if demo != nil { demo?.journal[entry.date] = entry } else { snapshot.journal[entry.date] = entry }
+    /// Correct a detection you disagree with, from the Day log.
+    func setFactor(_ id: String, on day: String, present: Bool) {
+        var entry = journal[day] ?? JournalEntry(date: day)
+        if present { entry.factors.insert(id); entry.denied.remove(id) } else { entry.denied.insert(id); entry.factors.remove(id) }
+        if demo != nil { demo?.journal[day] = entry } else { snapshot.journal[day] = entry }
         persist()
         recompute()
     }
@@ -89,14 +86,17 @@ final class AppModel {
     private func persist() { store.save(snapshot) }
 
     private func recompute() {
-        let days = self.days, journal = self.journal, factors = self.factors, settings = self.settings
+        let days = self.days, journal = self.journal, settings = self.settings
         Task.detached(priority: .userInitiated) {
-            let a = Analyzer.run(days: days, journal: journal, factors: factors, settings: settings)
-            await MainActor.run { self.analysis = a }
+            let a = Analyzer.run(days: days, journal: journal, settings: settings)
+            await MainActor.run {
+                self.analysis = a
+                WidgetBridge.publish(a)
+            }
         }
     }
 
-    // MARK: Sync
+    // MARK: Connections
 
     func connectAppleHealth() async {
         guard HealthKitSync.isAvailable else { errorMessage = "Apple Health isn't available on this device."; return }
@@ -113,6 +113,15 @@ final class AppModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    func connectCalendar() async {
+        if await calendar.requestAccess() { await sync() }
+    }
+
+    func connectWeather() {
+        weather.requestAccess()
+        Task { try? await Task.sleep(for: .seconds(2)); await sync() }
+    }
+
     func startBackgroundDelivery() {
         guard HealthKitSync.isAvailable else { return }
         healthKit.enableBackgroundDelivery { [weak self] in await self?.sync(background: true) }
@@ -122,8 +131,7 @@ final class AppModel {
         let config = GoogleOAuthConfig(clientID: clientID)
         guard config.isValid, let scheme = config.reversedClientScheme else { errorMessage = AuthError.invalidClientID.localizedDescription; return }
         updateSettings { $0.googleClientID = config.clientID }
-        let pkce = PKCE()
-        let state = UUID().uuidString
+        let pkce = PKCE(), state = UUID().uuidString
         guard let url = googleAuth.authorizationURL(config: config, pkce: pkce, state: state) else { return }
         do {
             let callback = try await WebAuthenticator.shared.authenticate(url: url, callbackScheme: scheme)
@@ -143,95 +151,75 @@ final class AppModel {
         recompute()
     }
 
+    // MARK: Sync
+
     func sync(background: Bool = false) async {
         guard !syncing, demo == nil else { return }
         syncing = true
         defer { syncing = false }
         var log: [SyncLogEntry] = []
-        let daysBack = snapshot.lastSync["appleHealth"] == nil ? settings.historyDays : 10
+        let firstSync = snapshot.lastSync["appleHealth"] == nil
+        let daysBack = firstSync ? settings.historyDays : 10
 
         if HealthKitSync.isAvailable {
             let r = await healthKit.sync(daysBack: daysBack)
             for (k, v) in r.days { snapshot.days[k] = v }
             snapshot.lastSync["appleHealth"] = Date()
             if let n = r.newest { snapshot.newestSample["appleHealth"] = n }
+            if let w = r.days.values.filter({ $0.weightKg != nil }).map(\.date).max() { snapshot.newestSample["weight"] = DayKey.date(from: w) }
+            if let m = r.days.values.compactMap({ $0.meals?.map(\.time).max() }).max() { snapshot.newestSample["meals"] = m }
             log += r.log
         }
 
         if googleAuth.isConnected, !settings.googleClientID.isEmpty {
             let client = HealthAPIClient(auth: googleAuth, config: GoogleOAuthConfig(clientID: settings.googleClientID))
-            let gBack = snapshot.lastSync["google"] == nil ? settings.historyDays : 10
-            let r = await GoogleSync.sync(client: client, daysBack: gBack)
+            let r = await GoogleSync.sync(client: client, daysBack: snapshot.lastSync["google"] == nil ? settings.historyDays : 10)
             for (k, v) in r.days { snapshot.googleDays[k] = v }
             snapshot.lastSync["google"] = Date()
-            if let newestHRV = r.days.values.filter({ $0.hrvRmssd != nil }).compactMap({ DayKey.date(from: $0.date) }).max() {
-                snapshot.newestSample["google"] = newestHRV
-            }
+            if let n = r.days.values.filter({ $0.hrvRmssd != nil }).compactMap({ DayKey.date(from: $0.date) }).max() { snapshot.newestSample["google"] = n }
             log += r.log
-            if r.log.contains(where: { $0.detail.contains("expired") }) {
-                errorMessage = AuthError.refreshExpired.localizedDescription
-            }
+            if r.log.contains(where: { $0.detail.contains("expired") }) { errorMessage = AuthError.refreshExpired.localizedDescription }
         }
+
+        // Context the app collects itself.
+        var ctx = snapshot.context
+        let todayKey = DayKey.today()
+        ctx[todayKey, default: DayRecord(date: todayKey)].timeZoneID = TimeZone.current.identifier
+        for (k, v) in calendar.summary(daysBack: daysBack) {
+            ctx[k, default: DayRecord(date: k)].lastEventEnd = v.lastEnd
+            ctx[k, default: DayRecord(date: k)].eventHours = v.hours
+        }
+        for (k, w) in await weather.fetch(daysBack: daysBack) { ctx[k, default: DayRecord(date: k)].weather = w }
+        snapshot.context = ctx
 
         syncLog = log
         persist()
-        let a = Analyzer.run(days: days, journal: journal, factors: factors, settings: settings)
+        let a = Analyzer.run(days: days, journal: journal, settings: settings)
         analysis = a
-        notifyIfNeeded(a)
+        WidgetBridge.publish(a)
+        notify(a)
     }
 
-    private func notifyIfNeeded(_ a: Analysis) {
+    private func notify(_ a: Analysis) {
         guard let t = a.latest else { return }
         if settings.notifyIllness, t.illness.level == .alert, !snapshot.notifiedAlerts.contains("illness-\(t.date)") {
             Notifier.send(id: "illness-\(t.date)", title: "Your vitals are off baseline", body: t.illness.message)
             snapshot.notifiedAlerts.insert("illness-\(t.date)")
         }
         if settings.notifyRecovery, let r = t.recovery, !snapshot.notifiedAlerts.contains("recovery-\(t.date)") {
-            let target = t.strainTarget.map { String(format: " Strain target %.1f.", $0) } ?? ""
-            Notifier.send(id: "recovery-\(t.date)", title: "Recovery \(r.score)%", body: "Your \(r.zone.rawValue) day is scored.\(target)")
+            let zone = r.zone == .green ? "primed" : r.zone == .yellow ? "steady" : "run down"
+            if let q = a.question {
+                Notifier.ask(id: "recovery-\(t.date)", title: "Recovery \(r.score)% · \(zone)",
+                             body: "Quick one: \(q.prompt.lowercased()) \(q.evidence).", day: q.day, factor: q.factor)
+            } else {
+                let target = t.strainTarget.map { String(format: " Strain target %.1f.", $0) } ?? ""
+                Notifier.send(id: "recovery-\(t.date)", title: "Recovery \(r.score)% · \(zone)", body: "Your day is scored.\(target)")
+            }
             snapshot.notifiedAlerts.insert("recovery-\(t.date)")
         }
-        persist()
-    }
-
-    // MARK: Coach
-
-    var chat: [ChatMessage] { snapshot.chat }
-
-    func setClaudeKey(_ key: String) { ClaudeClient.storeKey(key) }
-
-    func clearChat() {
-        snapshot.chat = []
-        persist()
-    }
-
-    func ask(_ text: String) async {
-        guard let key = ClaudeClient.storedKey() else { errorMessage = CoachError.noKey.localizedDescription; return }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !coachStreaming else { return }
-        snapshot.chat.append(ChatMessage(role: .user, text: trimmed))
-        let reply = ChatMessage(role: .assistant, text: "")
-        snapshot.chat.append(reply)
-        coachStreaming = true
-        defer { coachStreaming = false; persist() }
-
-        let context = CoachContext.build(analysis: analysis, days: days, journal: journal, factors: factors, settings: settings)
-        let system = CoachContext.systemPrompt + "\n\n<my_data>\n" + context + "\n</my_data>"
-        let history = Array(snapshot.chat.dropLast().suffix(20))
-        do {
-            for try await delta in ClaudeClient(apiKey: key).stream(system: system, messages: history) {
-                if let i = snapshot.chat.firstIndex(where: { $0.id == reply.id }) { snapshot.chat[i].text += delta }
-            }
-        } catch {
-            if let i = snapshot.chat.firstIndex(where: { $0.id == reply.id }) {
-                if snapshot.chat[i].text.isEmpty { snapshot.chat.remove(at: i) }
-            }
-            errorMessage = error.localizedDescription
+        if settings.notifyBedtime, let s = a.suggestions.first(where: { $0.kind == .bedtime }), let bed = t.bedtimeTonight {
+            Notifier.schedule(id: "bedtime-\(t.date)", at: bed.addingTimeInterval(-45 * 60), title: "Wind down", body: s.title)
         }
-    }
-
-    func morningBrief() {
-        selectedTab = .coach
-        Task { await ask(CoachContext.morningBriefPrompt) }
+        persist()
     }
 }

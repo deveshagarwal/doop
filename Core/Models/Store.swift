@@ -7,10 +7,11 @@ public struct StoreSnapshot: Codable, Sendable {
     public var days: [String: DayRecord] = [:]
     /// From the Google Health API (HRV and nightly vitals). Kept apart so each source re-syncs cleanly.
     public var googleDays: [String: DayRecord] = [:]
+    /// Calendar, weather and time zone per day, collected by the app itself.
+    public var context: [String: DayRecord] = [:]
     public var journal: [String: JournalEntry] = [:]
     public var customFactors: [JournalFactor] = []
     public var settings = UserSettings()
-    public var chat: [ChatMessage] = []
     public var lastSync: [String: Date] = [:]
     /// Newest sample timestamp seen per source, for the data-freshness readout.
     public var newestSample: [String: Date] = [:]
@@ -23,10 +24,10 @@ public struct StoreSnapshot: Codable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         days = try c.decodeIfPresent([String: DayRecord].self, forKey: .days) ?? [:]
         googleDays = try c.decodeIfPresent([String: DayRecord].self, forKey: .googleDays) ?? [:]
+        context = try c.decodeIfPresent([String: DayRecord].self, forKey: .context) ?? [:]
         journal = try c.decodeIfPresent([String: JournalEntry].self, forKey: .journal) ?? [:]
         customFactors = try c.decodeIfPresent([JournalFactor].self, forKey: .customFactors) ?? []
         settings = try c.decodeIfPresent(UserSettings.self, forKey: .settings) ?? UserSettings()
-        chat = try c.decodeIfPresent([ChatMessage].self, forKey: .chat) ?? []
         lastSync = try c.decodeIfPresent([String: Date].self, forKey: .lastSync) ?? [:]
         newestSample = try c.decodeIfPresent([String: Date].self, forKey: .newestSample) ?? [:]
         notifiedAlerts = try c.decodeIfPresent(Set<String>.self, forKey: .notifiedAlerts) ?? []
@@ -38,10 +39,13 @@ public struct StoreSnapshot: Codable, Sendable {
         for (k, g) in googleDays {
             if var base = out[k] { base.merge(g); out[k] = base } else { out[k] = g }
         }
+        for (k, c) in context {
+            if var base = out[k] { base.merge(c); out[k] = base }
+        }
         return out
     }
 
-    public var factors: [JournalFactor] { JournalFactor.defaults + customFactors }
+    public var factors: [JournalFactor] { JournalFactor.all }
 }
 
 public final class Store: @unchecked Sendable {

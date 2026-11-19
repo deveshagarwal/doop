@@ -29,7 +29,14 @@ final class WebAuthenticator: NSObject, ASWebAuthenticationPresentationContextPr
 }
 
 enum Notifier {
+    static let questionCategory = "DAILY_QUESTION"
+
     static func requestPermission() async {
+        let yes = UNNotificationAction(identifier: "YES", title: "Yes")
+        let no = UNNotificationAction(identifier: "NO", title: "No")
+        UNUserNotificationCenter.current().setNotificationCategories([
+            UNNotificationCategory(identifier: questionCategory, actions: [yes, no], intentIdentifiers: []),
+        ])
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
     }
 
@@ -39,5 +46,26 @@ enum Notifier {
         c.body = body
         c.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: c, trigger: nil))
+    }
+
+    /// Morning notification carrying the one yes/no, answerable without opening the app.
+    static func ask(id: String, title: String, body: String, day: String, factor: String) {
+        let c = UNMutableNotificationContent()
+        c.title = title
+        c.body = body
+        c.sound = .default
+        c.categoryIdentifier = questionCategory
+        c.userInfo = ["day": day, "factor": factor]
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: c, trigger: nil))
+    }
+
+    static func schedule(id: String, at date: Date, title: String, body: String) {
+        guard date > Date() else { return }
+        let c = UNMutableNotificationContent()
+        c.title = title
+        c.body = body
+        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: c,
+                                                                     trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)))
     }
 }

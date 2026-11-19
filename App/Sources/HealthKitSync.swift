@@ -12,11 +12,14 @@ final class HealthKitSync: @unchecked Sendable {
     private let quantityTypes: [HKQuantityTypeIdentifier] = [
         .heartRate, .restingHeartRate, .heartRateVariabilitySDNN, .respiratoryRate, .oxygenSaturation,
         .appleSleepingWristTemperature, .bodyTemperature, .vo2Max, .stepCount, .activeEnergyBurned,
+        // Written by other apps: Omada (weight), Nourish (meals, caffeine, alcohol).
+        .bodyMass, .dietaryEnergyConsumed, .dietaryProtein, .dietaryCaffeine, .numberOfAlcoholicBeverages,
     ]
 
     private var readTypes: Set<HKObjectType> {
         var s = Set<HKObjectType>(quantityTypes.map { HKQuantityType($0) })
         s.insert(HKCategoryType(.sleepAnalysis))
+        s.insert(HKCategoryType(.mindfulSession))
         s.insert(HKObjectType.workoutType())
         s.insert(HKCharacteristicType(.dateOfBirth))
         s.insert(HKCharacteristicType(.biologicalSex))
@@ -54,7 +57,8 @@ final class HealthKitSync: @unchecked Sendable {
                 }
             }
             store.execute(query)
-            store.enableBackgroundDelivery(for: type, frequency: .hourly) { _, _ in }
+            // Sleep can wake the app immediately; most other types are limited to hourly.
+            store.enableBackgroundDelivery(for: type, frequency: type == HKCategoryType(.sleepAnalysis) ? .immediate : .hourly) { _, _ in }
         }
     }
 
@@ -139,6 +143,36 @@ final class HealthKitSync: @unchecked Sendable {
             note("Sleep", "\(sessions.count) sessions")
         } catch { note("Sleep", error.localizedDescription, true) }
 
+        // Weight (Omada) and meals (Nourish), via Apple Health.
+        do {
+            let w = try await quantitySamples(.bodyMass, unit: .gramUnit(with: .kilo), start: start, end: end)
+            for (t, v) in w { update(DayKey.string(from: t)) { $0.weightKg = v } }
+            note("Weight", w.isEmpty ? "none · in Omada: Settings → Health Integration" : "\(w.count) weigh-ins")
+        } catch { note("Weight", error.localizedDescription, true) }
+        do {
+            let meals = try await mealSamples(start: start, end: end)
+            var byDay: [String: [Meal]] = [:]
+            for m in meals { byDay[DayKey.string(from: m.time), default: []].append(m) }
+            for (k, list) in byDay { update(k) { $0.meals = list } }
+            note("Meals", meals.isEmpty ? "none · Nourish may not write nutrition to Health" : "\(meals.count) entries")
+        } catch { note("Meals", error.localizedDescription, true) }
+        do {
+            let raw: [HKCategorySample] = try await samples(HKCategoryType(.mindfulSession), start: start, end: end)
+            var byDay: [String: Double] = [:]
+            for s in raw { byDay[DayKey.string(from: s.startDate), default: 0] += s.endDate.timeIntervalSince(s.startDate) / 60 }
+            for (k, m) in byDay { update(k) { $0.mindfulMinutes = m } }
+            note("Mindful", "\(byDay.count) days")
+        } catch { note("Mindful", error.localizedDescription, true) }
+        // Steps per minute, recent two weeks only: enough to separate stress from movement.
+        do {
+            let recentStart = max(start, Date().addingTimeInterval(-14 * 86400))
+            let minutes = try await statistics(.stepCount, unit: .count(), option: .cumulativeSum,
+                                               start: recentStart, end: end, interval: DateComponents(minute: 1))
+            var byDay: [String: [MinuteValue]] = [:]
+            for (t, v) in minutes where v > 0 { byDay[DayKey.string(from: t), default: []].append(MinuteValue(t: t, v: v)) }
+            for (k, list) in byDay { update(k) { $0.stepMinutes = list } }
+        } catch { note("Steps per minute", error.localizedDescription, true) }
+
         do {
             let workouts = try await workouts(start: start, end: end)
             var byDay: [String: [Workout]] = [:]
@@ -189,6 +223,25 @@ final class HealthKitSync: @unchecked Sendable {
             }
             store.execute(q)
         }
+    }
+
+    /// Nutrition samples grouped into meals: entries within 20 minutes of each other are one meal.
+    private func mealSamples(start: Date, end: Date) async throws -> [Meal] {
+        let kcal = try await quantitySamples(.dietaryEnergyConsumed, unit: .kilocalorie(), start: start, end: end)
+        let protein = try await quantitySamples(.dietaryProtein, unit: .gram(), start: start, end: end)
+        let caffeine = try await quantitySamples(.dietaryCaffeine, unit: .gramUnit(with: .milli), start: start, end: end)
+        let alcohol = try await quantitySamples(.numberOfAlcoholicBeverages, unit: .count(), start: start, end: end)
+        var meals: [Meal] = []
+        func slot(_ t: Date) -> Int {
+            if let i = meals.firstIndex(where: { abs($0.time.timeIntervalSince(t)) < 20 * 60 }) { return i }
+            meals.append(Meal(time: t))
+            return meals.count - 1
+        }
+        for (t, v) in kcal { let i = slot(t); meals[i].kcal = (meals[i].kcal ?? 0) + v }
+        for (t, v) in protein { let i = slot(t); meals[i].proteinG = (meals[i].proteinG ?? 0) + v }
+        for (t, v) in caffeine { let i = slot(t); meals[i].caffeineMg = (meals[i].caffeineMg ?? 0) + v }
+        for (t, v) in alcohol { let i = slot(t); meals[i].alcoholG = (meals[i].alcoholG ?? 0) + v * 14 }
+        return meals.sorted { $0.time < $1.time }
     }
 
     private func newestSampleDate(_ id: HKQuantityTypeIdentifier) async throws -> Date? {

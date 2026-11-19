@@ -11,6 +11,7 @@ struct User: Decodable { let id: String; let age: String; let gender: String; le
 
 let users = try JSONDecoder().decode([User].self, from: Data(contentsOf: URL(fileURLWithPath: "data/lifesnaps.json")))
 var out: [[String: Any]] = []
+var forecasts: [(Double, Double, Int)] = []
 
 for u in users {
     var settings = UserSettings()
@@ -45,6 +46,7 @@ for u in users {
 
     guard let last = days.keys.max() else { continue }
     let a = Analyzer.run(days: days, journal: [:], factors: [], settings: settings, today: last)
+    if let f = a.forecast { forecasts.append((f.backtestError, f.naiveError, f.trainedOn)) }
     for (k, s) in a.scores where days[k] != nil {
         var row: [String: Any] = ["id": u.id, "date": k, "strain": s.strain.strain, "illness": s.illness.level.rawValue,
                                   "loadStatus": s.load.status.rawValue]
@@ -56,3 +58,9 @@ for u in users {
 }
 try JSONSerialization.data(withJSONObject: out).write(to: URL(fileURLWithPath: "data/scores.json"))
 print("scored \(out.count) participant-days")
+if !forecasts.isEmpty {
+    let model = forecasts.map(\.0).reduce(0, +) / Double(forecasts.count), naive = forecasts.map(\.1).reduce(0, +) / Double(forecasts.count)
+    let wins = forecasts.filter { $0.0 < $0.1 }.count
+    print(String(format: "forecast: %d people with enough nights; error ±%.1f vs naive ±%.1f (%.0f%% better); beats naive for %d of %d",
+                 forecasts.count, model, naive, (1 - model / naive) * 100, wins, forecasts.count))
+}

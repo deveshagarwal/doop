@@ -4,22 +4,23 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var clientID = ""
-    @State private var claudeKey = ""
     @State private var maxHR = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    LabeledContent("Apple Health", value: model.hasAppleHealthData ? "Connected" : "Not connected")
-                    if !model.hasAppleHealthData {
-                        Button("Connect Apple Health") { Task { await model.connectAppleHealth() } }
-                    }
-                    LabeledContent("Newest heart rate", value: Fmt.relative(model.snapshot.newestSample["appleHealth"]))
-                    LabeledContent("Last sync", value: Fmt.relative(model.snapshot.lastSync["appleHealth"]))
+                    source("Apple Health", model.hasAppleHealthData, detail: "newest " + Fmt.relative(model.snapshot.newestSample["appleHealth"]))
+                    if !model.hasAppleHealthData { Button("Connect Apple Health") { Task { await model.connectAppleHealth() } } }
+                    source("Omada weight", model.snapshot.newestSample["weight"] != nil, detail: model.snapshot.newestSample["weight"].map { "last " + Fmt.relative($0) } ?? "via Apple Health")
+                    source("Nourish meals", model.snapshot.newestSample["meals"] != nil, detail: model.snapshot.newestSample["meals"].map { "last " + Fmt.relative($0) } ?? "via Apple Health")
+                    source("Calendar", model.calendarConnected, detail: model.calendarConnected ? "late meetings, busy days" : "")
+                    if !model.calendarConnected { Button("Connect Calendar") { Task { await model.connectCalendar() } } }
+                    source("Weather", model.weather.status == .authorizedWhenInUse, detail: "hot nights · approximate location")
+                    if model.weather.status != .authorizedWhenInUse { Button("Allow approximate location") { model.connectWeather() } }
                     Button(model.syncing ? "Syncing…" : "Sync now") { Task { await model.sync() } }.disabled(model.syncing)
-                } header: { Text("Data") } footer: {
-                    Text("In the Google Health app turn on Connections → Apps and services → Apple Health. \"Newest heart rate\" shows how far behind the band → Google Health → Apple Health chain is running.")
+                } header: { Text("Sources") } footer: {
+                    Text("Everything is read-only and stays on this phone. Omada and Nourish arrive through Apple Health: in Omada, Settings → Health Integration → Share with Health App. In Google Health: Connections → Apps and services → Apple Health.")
                 }
 
                 Section {
@@ -31,43 +32,43 @@ struct SettingsView: View {
                     } else {
                         TextField("iOS client ID (…apps.googleusercontent.com)", text: $clientID)
                             .textInputAutocapitalization(.never).autocorrectionDisabled().font(.footnote)
-                        Button("Connect Google Health") { Task { await model.connectGoogle(clientID: clientID) } }
-                            .disabled(clientID.isEmpty)
+                        Button("Connect Google Health") { Task { await model.connectGoogle(clientID: clientID) } }.disabled(clientID.isEmpty)
                     }
                 } header: { Text("HRV via Google Health (optional)") } footer: {
-                    Text("Apple Health doesn't receive HRV from Fitbit, and HRV is the biggest input to recovery. One-time setup: create a Google Cloud project, enable the Google Health API, add yourself as a test user, add the three googlehealth read scopes, and create an iOS OAuth client with this app's bundle ID. See SETUP.md. Google expires personal-app sign-ins every 7 days, so you'll tap Reconnect weekly.")
+                    Text("Apple Health doesn't receive HRV from Fitbit, and HRV is the biggest input to recovery. One-time setup is in SETUP.md. Google expires personal-app sign-ins every 7 days, so you'll tap Reconnect weekly.")
                 }
 
                 Section {
-                    SecureField(model.hasClaudeKey ? "Key saved. Paste to replace" : "sk-ant-…", text: $claudeKey)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button("Save key") { model.setClaudeKey(claudeKey); claudeKey = "" }.disabled(claudeKey.isEmpty)
-                    if model.hasClaudeKey { Button("Remove key", role: .destructive) { model.setClaudeKey("") } }
-                } header: { Text("Coach (Claude)") } footer: {
-                    Text("Stored in the Keychain. Only summarized daily numbers are sent, and only when you ask the coach something. Uses \(ClaudeClient.model).")
+                    if let f = model.analysis.forecast {
+                        LabeledContent("Trained on", value: "\(f.trainedOn) nights")
+                        LabeledContent("Forecast error", value: String(format: "±%.1f points", f.backtestError))
+                        LabeledContent("vs. \"same as today\"", value: String(format: "%.0f%% better", f.beatsNaiveBy * 100))
+                    } else {
+                        Text("The forecast trains after about 3 weeks of nights.").foregroundStyle(.secondary)
+                    }
+                    LabeledContent("Last run", value: model.analysis.computedAt.formatted(date: .omitted, time: .shortened))
+                } header: { Text("On-device models") } footer: {
+                    Text("Every model trains and runs on this phone whenever new data arrives. The error is measured by predicting each recent day from only the days before it. On 51 people in the LifeSnaps research dataset the same forecast was ±9.9 points, 21% better than \"same as today\".")
                 }
 
                 Section("Profile") {
                     Stepper("Age \(model.settings.age)", value: Binding(get: { model.settings.age }, set: { v in model.updateSettings { $0.age = v } }), in: 14...90)
                     Picker("Sex", selection: Binding(get: { model.settings.sex }, set: { v in model.updateSettings { $0.sex = v } })) {
-                        Text("Male").tag(BiologicalSex.male)
-                        Text("Female").tag(BiologicalSex.female)
-                        Text("Unspecified").tag(BiologicalSex.unspecified)
+                        Text("Male").tag(BiologicalSex.male); Text("Female").tag(BiologicalSex.female); Text("Unspecified").tag(BiologicalSex.unspecified)
                     }
                     HStack {
                         Text("Max HR")
-                        TextField("\(Int(model.settings.maxHR)) (estimated)", text: $maxHR)
-                            .keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                        TextField("\(Int(model.settings.maxHR)) (estimated)", text: $maxHR).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                             .onSubmit { model.updateSettings { $0.maxHROverride = Double(maxHR) } }
                     }
                     Stepper(String(format: "Base sleep need %.1fh", model.settings.baseSleepNeedHours),
-                            value: Binding(get: { model.settings.baseSleepNeedHours }, set: { v in model.updateSettings { $0.baseSleepNeedHours = v } }),
-                            in: 6...10, step: 0.25)
+                            value: Binding(get: { model.settings.baseSleepNeedHours }, set: { v in model.updateSettings { $0.baseSleepNeedHours = v } }), in: 6...10, step: 0.25)
                 }
 
                 Section("Notifications") {
-                    Toggle("Illness alerts", isOn: Binding(get: { model.settings.notifyIllness }, set: { v in model.updateSettings { $0.notifyIllness = v } }))
-                    Toggle("Morning recovery", isOn: Binding(get: { model.settings.notifyRecovery }, set: { v in model.updateSettings { $0.notifyRecovery = v } }))
+                    Toggle("Morning recovery + one question", isOn: Binding(get: { model.settings.notifyRecovery }, set: { v in model.updateSettings { $0.notifyRecovery = v } }))
+                    Toggle("Illness watch", isOn: Binding(get: { model.settings.notifyIllness }, set: { v in model.updateSettings { $0.notifyIllness = v } }))
+                    Toggle("Bedtime nudge", isOn: Binding(get: { model.settings.notifyBedtime }, set: { v in model.updateSettings { $0.notifyBedtime = v } }))
                 }
 
                 Section {
@@ -75,25 +76,36 @@ struct SettingsView: View {
                 } footer: { Text("90 days of generated data so you can explore every screen. Your real data is untouched.") }
 
                 if !model.syncLog.isEmpty {
-                    Section("Last sync log") {
+                    Section("Last sync") {
                         ForEach(model.syncLog) { e in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(e.source) · \(e.metric)").font(.caption.weight(.semibold))
-                                Text(e.detail).font(.caption2).foregroundStyle(e.isError ? Theme.red : Theme.secondary)
+                                Text(e.detail).font(.caption2).foregroundStyle(e.isError ? Ember.ember : .secondary)
                             }
                         }
                     }
                 }
 
                 Section {
-                    Text("Not a medical device. Scores are estimates from published methods, scored against your own baselines. Google Health API code adapted from Pulse (Apache 2.0).")
-                        .font(.caption).foregroundStyle(Theme.secondary)
+                    Text("Not a medical device. Scores are estimates from published methods, scored against your own baselines. Google Health API code adapted from Pulse (Apache 2.0).").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Ember.ink)
             .navigationTitle("Settings")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .onAppear { maxHR = model.settings.maxHROverride.map { "\(Int($0))" } ?? "" }
         }
         .preferredColorScheme(.dark)
+        .tint(Ember.ember)
+    }
+
+    private func source(_ name: String, _ on: Bool, detail: String) -> some View {
+        HStack {
+            Circle().fill(on ? Ember.ember : Ember.bone3).frame(width: 7, height: 7).shadow(color: on ? Ember.ember : .clear, radius: 3)
+            Text(name)
+            Spacer()
+            Text(detail).font(.caption).foregroundStyle(.secondary)
+        }
     }
 }
