@@ -9,7 +9,7 @@ struct WidgetSnapshot: Codable {
     var bedtime: Date?
     var updated: Date
 
-    static let appGroup = "group.com.dagarwal.baseline"
+    static let appGroup = "group.com.dagarwal.doop"
     static let key = "widget.snapshot"
 
     static func load() -> WidgetSnapshot? {

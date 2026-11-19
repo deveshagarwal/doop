@@ -1,15 +1,15 @@
-# Baseline
+# DOOP
 
-A personal recovery app for the Google Fitbit Air, in the spirit of WHOOP, Bevel and Athlytic, built to need
+A dupe on WHOOP: a personal recovery app for the Google Fitbit Air, in the spirit of WHOOP, Bevel and Athlytic, built to need
 no logging. Recovery, strain, sleep, training load, illness watch, energy and stress, healthspan, and a
 "For you" feed from on-device models. Everything is scored against your own baselines and stays on the phone.
 
 ## Data, with nothing to log
 
 ```
-Fitbit Air → Google Health app → Apple Health → Baseline   sleep, heart rate, workouts, vitals, steps
-Omada scale → Apple Health → Baseline                       weight
-Nourish → Apple Health → Baseline                           meals, protein, caffeine, drinks
+Fitbit Air → Google Health app → Apple Health → DOOP   sleep, heart rate, workouts, vitals, steps
+Omada scale → Apple Health → DOOP                       weight
+Nourish → Apple Health → DOOP                           meals, protein, caffeine, drinks
 Calendar (read-only) · weather (Open-Meteo) · time zone     late meetings, hot nights, travel
 Google Health API (optional)                                HRV, which Apple Health doesn't receive
 ```

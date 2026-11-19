@@ -21,7 +21,7 @@ struct Provider: TimelineProvider {
 private let bone = Color(red: 0.937, green: 0.914, blue: 0.875)
 private let ember = Color(red: 1.0, green: 0.70, blue: 0.42)
 
-struct BaselineWidgetView: View {
+struct DOOPWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: Entry
 
@@ -64,13 +64,13 @@ struct BaselineWidgetView: View {
 }
 
 @main
-struct BaselineWidget: Widget {
+struct DOOPWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "BaselineWidget", provider: Provider()) { entry in
-            BaselineWidgetView(entry: entry)
+        StaticConfiguration(kind: "DOOPWidget", provider: Provider()) { entry in
+            DOOPWidgetView(entry: entry)
                 .containerBackground(for: .widget) { Color(red: 0.024, green: 0.024, blue: 0.027) }
         }
-        .configurationDisplayName("Baseline")
+        .configurationDisplayName("DOOP")
         .description("Recovery, strain and tonight's bedtime.")
         .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }

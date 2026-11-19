@@ -1,4 +1,4 @@
-name: Baseline
+name: DOOP
 options:
   bundleIdPrefix: com.dagarwal
   deploymentTarget:
@@ -13,65 +13,65 @@ settings:
     CURRENT_PROJECT_VERSION: 2
 
 targets:
-  Baseline:
+  DOOP:
     type: application
     platform: iOS
     dependencies:
-      - target: BaselineWidget
+      - target: DOOPWidget
     sources:
       - path: App
       - path: Shared
       - path: Core
         excludes: [Package.swift, .build]
     entitlements:
-      path: App/Baseline.entitlements
+      path: App/DOOP.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.background-delivery: true
         com.apple.developer.healthkit.access: []
-        com.apple.security.application-groups: [group.com.dagarwal.baseline]
+        com.apple.security.application-groups: [group.com.dagarwal.doop]
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Baseline
+        CFBundleDisplayName: DOOP
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
-        NSHealthShareUsageDescription: "Baseline reads the sleep, heart rate, workouts and vitals your Fitbit shares through Google Health, plus weight from Omada and meals from Nourish, to score your recovery on this phone."
-        NSHealthUpdateUsageDescription: "Baseline does not write to Apple Health."
-        NSCalendarsFullAccessUsageDescription: "Baseline notices late meetings and packed days so it can see how they affect your sleep and recovery. Nothing leaves your phone."
-        NSLocationWhenInUseUsageDescription: "Baseline uses your approximate location once a day to look up overnight temperature, so it can spot hot nights that disturb sleep."
+        NSHealthShareUsageDescription: "DOOP reads the sleep, heart rate, workouts and vitals your Fitbit shares through Google Health, plus weight from Omada and meals from Nourish, to score your recovery on this phone."
+        NSHealthUpdateUsageDescription: "DOOP does not write to Apple Health."
+        NSCalendarsFullAccessUsageDescription: "DOOP notices late meetings and packed days so it can see how they affect your sleep and recovery. Nothing leaves your phone."
+        NSLocationWhenInUseUsageDescription: "DOOP uses your approximate location once a day to look up overnight temperature, so it can spot hot nights that disturb sleep."
         UIBackgroundModes: [fetch, processing]
-        BGTaskSchedulerPermittedIdentifiers: [com.dagarwal.baseline.refresh]
+        BGTaskSchedulerPermittedIdentifiers: [com.dagarwal.doop.refresh]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dagarwal.baseline
+        PRODUCT_BUNDLE_IDENTIFIER: com.dagarwal.doop
         TARGETED_DEVICE_FAMILY: "1"
-        INFOPLIST_KEY_CFBundleDisplayName: Baseline
+        INFOPLIST_KEY_CFBundleDisplayName: DOOP
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
-  BaselineWidget:
+  DOOPWidget:
     type: app-extension
     platform: iOS
     sources:
       - path: Widget
       - path: Shared
     entitlements:
-      path: Widget/BaselineWidget.entitlements
+      path: Widget/DOOPWidget.entitlements
       properties:
-        com.apple.security.application-groups: [group.com.dagarwal.baseline]
+        com.apple.security.application-groups: [group.com.dagarwal.doop]
     info:
       path: Widget/Info.plist
       properties:
-        CFBundleDisplayName: Baseline
+        CFBundleDisplayName: DOOP
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dagarwal.baseline.widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.dagarwal.doop.widget
         TARGETED_DEVICE_FAMILY: "1"

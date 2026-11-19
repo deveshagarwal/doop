@@ -2,9 +2,9 @@
 
 ## 1. Put it on your iPhone (10 min)
 
-1. `open Baseline.xcodeproj`
-2. Target **Baseline** → *Signing & Capabilities* → choose your Team (a free Apple ID works).
-   If the bundle ID `com.dagarwal.baseline` is taken, change it in `project.yml` and run `xcodegen generate`.
+1. `open DOOP.xcodeproj`
+2. Target **DOOP** → *Signing & Capabilities* → choose your Team (a free Apple ID works).
+   If the bundle ID `com.dagarwal.doop` is taken, change it in `project.yml` and run `xcodegen generate`.
 3. Plug in your iPhone, select it as the run destination, press ▶︎.
    First run: on the phone, Settings → General → VPN & Device Management → trust your developer certificate.
 
@@ -14,7 +14,7 @@ HealthKit works with a free account.
 ## 2. Apple Health (2 min, required)
 
 1. In the **Google Health** app (5.05 or newer): Connections → Apps and services → **Apple Health**, turn sharing on.
-2. In Baseline: **Connect Apple Health**, allow all categories, allow notifications.
+2. In DOOP: **Connect Apple Health**, allow all categories, allow notifications.
 
 The first sync pulls 90 days. Recovery shows "calibrating" until there are 5 nights of baseline.
 
@@ -27,8 +27,8 @@ The first sync pulls 90 days. Recovery shows "calibrating" until there are 5 nig
    - `googlehealth.health_metrics_and_measurements.readonly`
    - `googlehealth.sleep.readonly`
    - `googlehealth.activity_and_fitness.readonly`
-5. Credentials → Create OAuth client ID → **iOS**, bundle ID `com.dagarwal.baseline` (or yours). Copy the client ID.
-6. Baseline → Settings → paste the client ID → **Connect Google Health**.
+5. Credentials → Create OAuth client ID → **iOS**, bundle ID `com.dagarwal.doop` (or yours). Copy the client ID.
+6. DOOP → Settings → paste the client ID → **Connect Google Health**.
 
 Because the project stays in Testing mode, Google expires the sign-in every 7 days. Settings shows a Reconnect button.
 Publishing the project would need Google's verification and a security audit, which isn't worth it for one user.
@@ -37,12 +37,12 @@ Publishing the project would need Google's verification and a security audit, wh
 
 - **Omada:** in the Omada app, Settings → Health Integration → Share with Health App, turn on weight.
 - **Nourish:** check its Health settings allow *writing* nutrition (energy, protein, caffeine). If it only reads, meals won't appear.
-- **Calendar and weather:** Baseline → Settings → Connect Calendar / Allow approximate location.
+- **Calendar and weather:** DOOP → Settings → Connect Calendar / Allow approximate location.
 
 ## 5. Widgets
 
-Long-press the lock screen or home screen → add Baseline. The widget shares data with the app through an App
-Group; with a free Apple ID, select your team for both the Baseline and BaselineWidget targets. If signing the
+Long-press the lock screen or home screen → add DOOP. The widget shares data with the app through an App
+Group; with a free Apple ID, select your team for both the DOOP and DOOPWidget targets. If signing the
 App Group fails, the app still works; only the widgets go blank.
 
 ## Troubleshooting

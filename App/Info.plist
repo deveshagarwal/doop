@@ -4,12 +4,12 @@
 <dict>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.dagarwal.baseline.refresh</string>
+		<string>com.dagarwal.doop.refresh</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Baseline</string>
+	<string>DOOP</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,13 +27,13 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Baseline notices late meetings and packed days so it can see how they affect your sleep and recovery. Nothing leaves your phone.</string>
+	<string>DOOP notices late meetings and packed days so it can see how they affect your sleep and recovery. Nothing leaves your phone.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Baseline reads the sleep, heart rate, workouts and vitals your Fitbit shares through Google Health, plus weight from Omada and meals from Nourish, to score your recovery on this phone.</string>
+	<string>DOOP reads the sleep, heart rate, workouts and vitals your Fitbit shares through Google Health, plus weight from Omada and meals from Nourish, to score your recovery on this phone.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Baseline does not write to Apple Health.</string>
+	<string>DOOP does not write to Apple Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Baseline uses your approximate location once a day to look up overnight temperature, so it can spot hot nights that disturb sleep.</string>
+	<string>DOOP uses your approximate location once a day to look up overnight temperature, so it can spot hot nights that disturb sleep.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

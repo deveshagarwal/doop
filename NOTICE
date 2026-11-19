@@ -1,4 +1,4 @@
-Baseline
+DOOP
 Personal recovery / strain / sleep app for the Fitbit Air.
 
 Portions of Core/Google/ (OAuth PKCE flow, Google Health API client, tolerant JSON

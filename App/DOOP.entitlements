@@ -10,7 +10,7 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.dagarwal.baseline</string>
+		<string>group.com.dagarwal.doop</string>
 	</array>
 </dict>
 </plist>

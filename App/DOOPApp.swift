@@ -3,11 +3,11 @@ import BackgroundTasks
 import UserNotifications
 
 @main
-struct BaselineApp: App {
+struct DOOPApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model = AppModel()
     @Environment(\.scenePhase) private var phase
-    static let refreshID = "com.dagarwal.baseline.refresh"
+    static let refreshID = "com.dagarwal.doop.refresh"
 
     init() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.refreshID, using: nil) { task in

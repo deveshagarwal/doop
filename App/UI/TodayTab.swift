@@ -449,7 +449,7 @@ struct Onboarding: View {
     var body: some View {
         EmberPage {
             Spacer(minLength: 60)
-            Text("Baseline").font(.ultra(48))
+            Text("DOOP").font(.ultra(48)).tracking(4)
             Text("Recovery, strain, sleep and early illness signals from your Fitbit Air, scored against your own baseline. Nothing to log. Everything stays on this phone.")
                 .font(.system(size: 15)).foregroundStyle(Ember.bone2)
             GlassCard {
