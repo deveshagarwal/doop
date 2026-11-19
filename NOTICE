@@ -1,0 +1,7 @@
+Baseline
+Personal recovery / strain / sleep app for the Fitbit Air.
+
+Portions of Core/Google/ (OAuth PKCE flow, Google Health API client, tolerant JSON
+extraction, Keychain wrapper) are adapted from Pulse by Luraxx
+(https://github.com/Luraxx/pulse), licensed under the Apache License 2.0.
+See LICENSE-PULSE. Comments were translated to English and the code restructured.
