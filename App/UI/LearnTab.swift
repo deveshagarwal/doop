@@ -1,7 +1,7 @@
 import SwiftUI
 import Charts
 
-enum LearnPage: Hashable { case effects, discoveries, explorer, patterns, weekly }
+enum LearnPage: Hashable { case effects, discoveries, explorer, patterns, weekly, glossary }
 
 struct LearnTab: View {
     @State private var path: [LearnPage] = LaunchArgs.page.flatMap { ["effects": LearnPage.effects, "discoveries": .discoveries, "explorer": .explorer, "patterns": .patterns, "weekly": .weekly][$0] }.map { [$0] } ?? []
@@ -15,6 +15,7 @@ struct LearnTab: View {
                     case .explorer: ExplorerPage()
                     case .patterns: PatternsPage()
                     case .weekly: WeeklyPage()
+                    case .glossary: GlossaryPage()
                     }
                 }
         }
@@ -31,8 +32,19 @@ struct LearnHome: View {
                 LearnLink(page: .discoveries, title: "Discoveries", detail: "\(model.analysis.effects.filter(\.isSolid).count) solid patterns found in your history")
                 LearnLink(page: .explorer, title: "Explorer", detail: "Any metric against any other")
                 LearnLink(page: .patterns, title: "Patterns", detail: "Calendar, weekday rhythm, distributions")
+                LearnLink(page: .glossary, title: "What everything means", detail: "Every score and term, in plain words")
                 LearnLink(page: .weekly, title: "Weekly report", detail: model.analysis.weekly.map { String(format: "Last week averaged %.0f%%", $0.averageRecovery) } ?? "After your first full week")
             }
+            ShareLink(item: model.askClaudeText) {
+                HStack {
+                    Text("Ask Claude about your data").font(.system(size: 12.5))
+                    Spacer()
+                    Image(systemName: "square.and.arrow.up").font(.system(size: 11))
+                }
+                .foregroundStyle(Ember.bone3)
+            }
+            .padding(.top, 6)
+            .accessibilityHint("Shares a summary of your numbers with your Claude app")
         }
     }
 }

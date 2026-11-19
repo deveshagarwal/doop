@@ -1,7 +1,7 @@
 import SwiftUI
 import Charts
 
-enum TodayPage: Hashable { case recovery, strain, sleep, tonight, forYou, workout(String, String) }
+enum TodayPage: Hashable { case recovery, strain, sleep, tonight, forYou, glossary, workout(String, String) }
 
 struct TodayTab: View {
     @Environment(AppModel.self) private var model
@@ -26,6 +26,7 @@ struct TodayTab: View {
                 case .sleep: SleepPage()
                 case .tonight: TonightPlanner()
                 case .forYou: ForYouPage()
+                case .glossary: GlossaryPage()
                 case .workout(let day, let id): WorkoutPage(day: day, workoutID: id)
                 }
             }
@@ -59,17 +60,15 @@ struct Home: View {
                 }
                 .padding(.top, 4)
                 Spacer(minLength: 0)
-                if let q = model.analysis.question { QuestionCard(question: q).padding(.bottom, 14) }
-                Text(verdict).font(.system(size: 14.5)).foregroundStyle(Ember.bone2).multilineTextAlignment(.center)
-                heroes.padding(.top, 18)
-                if let s = model.analysis.suggestions.first { topSuggestion(s).padding(.top, 16) }
-                ShareLink(item: model.askClaudeText) {
-                    Text("Ask Claude ↗").font(.system(size: 12.5, weight: .medium)).foregroundStyle(Ember.bone)
-                        .padding(.horizontal, 16).padding(.vertical, 9)
-                        .glassEffect(.regular.interactive(), in: .capsule)
+                if day.recovery == nil {
+                    GettingStarted()
+                } else {
+                    if let q = model.analysis.question { QuestionCard(question: q).padding(.bottom, 14) }
+                    Text(verdict).font(.system(size: 14.5)).foregroundStyle(Ember.bone2).multilineTextAlignment(.center)
+                    heroes.padding(.top, 18)
+                    if let s = model.analysis.suggestions.first { topSuggestion(s).padding(.top, 16) }
                 }
-                .padding(.top, 12)
-                .accessibilityHint("Shares today's summary with your Claude app")
+
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
@@ -438,6 +437,147 @@ struct ForYouPage: View {
             }
         }
         .onAppear { shown = true }
+    }
+}
+
+// MARK: Getting started (before there's enough data to score)
+
+struct GettingStarted: View {
+    @Environment(AppModel.self) private var model
+    @State private var showSettings = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            steps
+            Label9("While you wait").padding(.top, 4)
+            waitActions
+        }
+        .padding(16)
+        .glassEffect(.regular, in: .rect(cornerRadius: 24))
+        .sheet(isPresented: $showSettings) { SettingsView() }
+    }
+
+    private var nights: Int {
+        model.analysis.orderedKeys.suffix(30).filter { (model.record($0)?.totalSleepMinutes ?? 0) > 120 }.count
+    }
+
+    private var heartRateToday: Bool {
+        guard let key = model.analysis.latestKey, let r = model.record(key) else { return false }
+        return !r.hrSamples.isEmpty
+    }
+
+    private var header: some View {
+        HStack {
+            InfoLabel(text: "Getting started", accent: true,
+                      info: "Each step ticks itself off as data arrives. Recovery needs a few nights of sleep with the band to learn your normal; until then there's nothing honest to score.")
+            Spacer()
+            Label9("\(min(nights, 5)) of 5 nights")
+        }
+    }
+
+    @ViewBuilder private var steps: some View {
+        let n = nights
+        let hr = heartRateToday
+        let weatherOn = model.weather.status == .authorizedWhenInUse
+        VStack(spacing: 0) {
+            Step(done: model.hasAppleHealthData, title: "Apple Health connected", detail: "Reading on this phone",
+                 actionTitle: "Connect") { Task { await model.connectAppleHealth() } }
+            Step(done: hr, title: "Fitbit data arriving",
+                 detail: hr ? "Heart rate is coming through" : "Wear the band, then in Google Health: Connections → Apps and services → Apple Health")
+            Step(done: n >= 1, title: "First night with the band",
+                 detail: n >= 1 ? "Sleep recorded" : "Wear it snug overnight; open Google Health in the morning")
+            Step(done: n >= 5, title: "Recovery calibrated",
+                 detail: n >= 5 ? "Scoring against your normal" : "\(max(0, 5 - n)) more nights to learn your normal")
+            Step(done: model.calendarConnected, title: "Calendar (optional)", detail: "Spots late meetings automatically",
+                 actionTitle: "Connect") { Task { await model.connectCalendar() } }
+            Step(done: weatherOn, title: "Weather (optional)", detail: "Spots hot nights automatically",
+                 actionTitle: "Allow") { model.connectWeather() }
+            Step(done: model.isGoogleConnected, title: "HRV via Google (optional)", detail: "The biggest input to recovery",
+                 actionTitle: "Set up") { showSettings = true }
+        }
+    }
+
+    private var waitActions: some View {
+        HStack(spacing: 8) {
+            ChipButton(title: "Breathe") { model.selectedTab = .body }
+            NavigationLink(value: TodayPage.glossary) {
+                Text("What everything means").font(.system(size: 12, weight: .medium)).foregroundStyle(Ember.bone)
+                    .padding(.horizontal, 14).padding(.vertical, 7)
+                    .background(Ember.glass, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            ChipButton(title: "Demo") { model.updateSettings { $0.demoMode = true } }
+        }
+    }
+}
+
+struct Step: View {
+    let done: Bool
+    let title: String
+    let detail: String
+    var actionTitle: String? = nil
+    var action: () -> Void = {}
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 15))
+                .foregroundStyle(done ? Ember.ember : Ember.bone3)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(done ? Ember.bone2 : Ember.bone)
+                Text(detail).font(.system(size: 11)).foregroundStyle(Ember.bone3).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 6)
+            if !done, let actionTitle {
+                Button(actionTitle, action: action)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Ember.ember)
+                    .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+// MARK: Glossary
+
+struct GlossaryPage: View {
+    private let entries: [(String, String)] = [
+        ("Recovery", "How ready your body is today, 1–99%. It compares last night's HRV, resting heart rate, sleep and breathing with your own last 30 days. 67+ is primed, 34–66 steady, under 34 run down."),
+        ("Strain", "How hard your heart worked today on a 0–21 scale. It's logarithmic: going from 10 to 14 takes far more effort than 2 to 6."),
+        ("Strain target", "How much strain today's recovery can absorb. Lower when recovery is low or your training load has jumped."),
+        ("HRV", "Heart rate variability: tiny variations between heartbeats while you sleep. Higher than your normal usually means your nervous system has recovered."),
+        ("Resting heart rate", "Your lowest steady heart rate overnight. A rise of 3+ bpm over your normal often means stress, alcohol or illness."),
+        ("Sleep need", "Your base need, plus part of any sleep debt, plus extra after a hard day."),
+        ("Sleep debt", "Sleep you've missed recently against your base need. It fades by about 30% a day, so it reflects the past week, not the past year."),
+        ("Nightlines", "Each hill is one night of heart rate, on a clock axis: it starts when you fell asleep and ends when you woke. Taller means your heart rate dropped further."),
+        ("Training load", "This week's average load divided by your last four weeks. 0.8–1.3 builds fitness safely; above 1.5 is where injury and illness risk climbs."),
+        ("Fitness and fatigue", "Fitness is your 6-week average load, fatigue your 1-week. The gap between them is your form."),
+        ("Energy bank", "Starts the morning at your recovery level. Exercise and stress drain it; sleep, naps and calm stretches refill it."),
+        ("Stress", "Minutes your heart rate was well above your calm baseline while you weren't moving. It can't tell excitement from worry."),
+        ("Illness watch", "Flags when several overnight signals drift from your normal together. A full alert needs two nights in a row."),
+        ("Body age", "What age your fitness, resting heart rate, activity and sleep look like against published norms. A rough guide, not a medical test."),
+        ("Pace of aging", "How many years your body age moves per calendar year. 1.0× is average; lower is slower. Needs about 4 months of data."),
+        ("Habit effects", "How your next morning differs after a habit, holding your other habits, strain and bedtime steady. Ember means solid; grey could be chance."),
+        ("Forecast", "Tomorrow's recovery predicted from tonight's choices, by a model trained only on your nights. Appears after about 3 weeks."),
+    ]
+
+    var body: some View {
+        EmberPage {
+            Label9("What everything means", accent: true)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(entries, id: \.0) { name, text in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(name).font(.system(size: 15, weight: .medium))
+                        Text(text).font(.system(size: 13)).foregroundStyle(Ember.bone2).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .top) { Rectangle().fill(Ember.hair).frame(height: 1) }
+                }
+            }
+        }
     }
 }
 
