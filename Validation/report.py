@@ -70,9 +70,12 @@ print(f"\nRECOVERY DISTRIBUTION (calibrated days)  mean {sum(settled)/len(settle
       f"green {g:.0%} / yellow {y:.0%} / red {1-g-y:.0%}")
 
 print("\nAGREEMENT WITH INDEPENDENT SIGNALS (within-person)")
-compare("Recovery vs Fitbit 'responsiveness' (its HRV/RHR readiness)", "recovery", "fbResponsiveness")
-compare("Sleep performance vs Fitbit sleep score", "sleepPerf", "fbSleep")
-compare("Strain vs Fitbit 'exertion' points", "strain", "fbExertion")
+# Note: these three are components of Fitbit's Stress Management Score, not its Daily Readiness or
+# Sleep Score (LifeSnaps doesn't include those). They measure related but different things, so
+# raw nightly HRV itself only reaches r≈0.20 against 'responsiveness'.
+compare("Recovery vs Stress Score 'responsiveness' component", "recovery", "fbResponsiveness")
+compare("Sleep performance vs Stress Score 'sleep patterns' component", "sleepPerf", "fbSleep")
+compare("Strain vs Stress Score 'exertion balance' component", "strain", "fbExertion")
 compare("Strain vs very-active minutes", "strain", "veryActive")
 group_diff("Recovery on days people said TIRED vs not", "tired")
 group_diff("Recovery on days people said RESTED/RELAXED vs not", "rested")
