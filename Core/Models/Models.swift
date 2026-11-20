@@ -179,7 +179,7 @@ public struct UserSettings: Codable, Sendable, Equatable {
     public var maxHROverride: Double?
     /// Baseline nightly sleep need in hours before debt and strain adjustments.
     public var baseSleepNeedHours: Double = 7.6
-    public var historyDays: Int = 90
+    public var historyDays: Int = 365
     public var demoMode: Bool = false
     public var googleClientID: String = ""
     public var notifyIllness: Bool = true
@@ -259,6 +259,9 @@ public struct DayRecord: Codable, Sendable {
     /// From the calendar: when the last timed event ended, and hours of events that day.
     public var lastEventEnd: Date?
     public var eventHours: Double?
+    /// Every other Apple Health type, one daily value each (sum for totals like water, average for readings like
+    /// blood pressure), keyed by HealthKit identifier. Units are in `StoreSnapshot.extraUnits`.
+    public var extras: [String: Double]?
 
     public init(date: String) { self.date = date }
 
@@ -292,6 +295,7 @@ public struct DayRecord: Codable, Sendable {
         mindfulMinutes = mindfulMinutes ?? other.mindfulMinutes
         lastEventEnd = lastEventEnd ?? other.lastEventEnd
         eventHours = eventHours ?? other.eventHours
+        if let o = other.extras { extras = (extras ?? [:]).merging(o) { mine, _ in mine } }
     }
 }
 

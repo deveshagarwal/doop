@@ -94,6 +94,15 @@ final class AppModel {
 
     var foodLog: [LoggedMeal] { snapshot.foodLog }
 
+    /// Extra Apple Health types that have at least one day of data, most-recorded first.
+    var extraMetricKeys: [String] {
+        var counts: [String: Int] = [:]
+        for d in days.values { for k in (d.extras ?? [:]).keys { counts[k, default: 0] += 1 } }
+        return counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map(\.key)
+    }
+
+    func unit(forExtra key: String) -> String { snapshot.extraUnits[key] ?? "" }
+
     func meals(on day: String) -> [LoggedMeal] {
         snapshot.foodLog.filter { DayKey.string(from: $0.time) == day }.sorted { $0.time < $1.time }
     }
@@ -231,12 +240,20 @@ final class AppModel {
         defer { syncing = false }
         var log: [SyncLogEntry] = []
         let firstSync = snapshot.lastSync["appleHealth"] == nil
-        let daysBack = firstSync ? settings.historyDays : 10
+        // One full pass after an update that reads more history or more types ("v2": a year, every Apple Health type).
+        let backfill = !background && snapshot.lastSync["fullHistoryV3"] == nil
+        if backfill, snapshot.settings.historyDays < 365 { snapshot.settings.historyDays = 365 }
+        let daysBack = firstSync || backfill ? settings.historyDays : 10
 
         if HealthKitSync.isAvailable {
+            // Asks once for any Apple Health types added since the last version; no prompt if nothing is new.
+            if !background, hasAppleHealthData { try? await healthKit.requestAuthorization() }
             let r = await healthKit.sync(daysBack: daysBack)
+            snapshot.extraUnits.merge(healthKit.extraUnits) { _, n in n }
+            // A locked phone returns nothing (Health data is protected then); only count the pass if data came back.
+            if backfill, !r.days.isEmpty { snapshot.lastSync["fullHistoryV3"] = Date() }
             for (k, v) in r.days { snapshot.days[k] = v }
-            snapshot.lastSync["appleHealth"] = Date()
+            if !r.days.isEmpty { snapshot.lastSync["appleHealth"] = Date() }
             if let n = r.newest { snapshot.newestSample["appleHealth"] = n }
             if let w = r.days.values.filter({ $0.weightKg != nil }).map(\.date).max() { snapshot.newestSample["weight"] = DayKey.date(from: w) }
             if let m = r.days.values.compactMap({ $0.meals?.map(\.time).max() }).max() { snapshot.newestSample["meals"] = m }

@@ -7,6 +7,8 @@ struct NightLine: Identifiable {
     let start: Date
     let end: Date
     let bpm: [Double]
+    /// True when there was no overnight heart rate and the shape comes from asleep/awake periods instead.
+    var fromSleepOnly = false
 
     static let points = 140
 
@@ -19,7 +21,11 @@ struct NightLine: Identifiable {
             let inWindow: (HRSample) -> Bool = { $0.t >= s.start && $0.t <= s.end }
             let evening: [HRSample] = days[DayKey.addDays(k, -1)]?.hrSamples.filter(inWindow) ?? []
             let samples: [HRSample] = evening + d.hrSamples.filter(inWindow)
-            guard samples.count > 40 else { continue }
+            guard samples.count > 40 else {
+                // No overnight heart rate (WHOOP shares little with Apple Health): asleep periods rise, awake ones dip.
+                if let line = fromStages(id: k, session: s) { out.append(line) }
+                continue
+            }
             var bins = Array(repeating: (0.0, 0), count: points)
             let span = s.end.timeIntervalSince(s.start)
             for x in samples {
@@ -39,6 +45,23 @@ struct NightLine: Identifiable {
             out.append(NightLine(id: k, start: s.start, end: s.end, bpm: v))
         }
         return Array(out.suffix(count))
+    }
+
+    static func fromStages(id: String, session s: SleepSession) -> NightLine? {
+        guard !s.stages.isEmpty else { return nil }
+        let span = s.end.timeIntervalSince(s.start)
+        var v: [Double] = (0..<points).map { i in
+            let t = s.start.addingTimeInterval(span * (Double(i) + 0.5) / Double(points))
+            let stage = s.stages.last { $0.start <= t && $0.end > t }?.stage
+            switch stage {
+            case .deep?: return 1.0
+            case .light?, .rem?, .unknown?: return 0.75
+            default: return 0.15
+            }
+        }
+        for _ in 0..<4 { v = v.indices.map { i in (v[max(0, i - 1)] + 2 * v[i] + v[min(v.count - 1, i + 1)]) / 4 } }
+        // Expressed as a heart-rate-like scale so the drawing code treats both kinds the same.
+        return NightLine(id: id, start: s.start, end: s.end, bpm: v.map { 72 - 22 * $0 }, fromSleepOnly: true)
     }
 }
 

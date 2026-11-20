@@ -1,7 +1,7 @@
 import SwiftUI
 import Charts
 
-enum LearnPage: Hashable { case forYou, effects, discoveries, explorer, patterns, weekly, glossary }
+enum LearnPage: Hashable { case forYou, allData, effects, discoveries, explorer, patterns, weekly, glossary }
 
 struct LearnTab: View {
     @State private var path: [LearnPage] = LaunchArgs.page.flatMap { ["foryou": LearnPage.forYou, "effects": LearnPage.effects, "discoveries": .discoveries, "explorer": .explorer, "patterns": .patterns, "weekly": .weekly][$0] }.map { [$0] } ?? []
@@ -11,6 +11,7 @@ struct LearnTab: View {
                 .navigationDestination(for: LearnPage.self) { p in
                     switch p {
                     case .forYou: ForYouPage()
+                    case .allData: AllHealthDataPage()
                     case .effects: EffectsPage()
                     case .discoveries: DiscoveriesPage()
                     case .explorer: ExplorerPage()
@@ -35,6 +36,7 @@ struct LearnHome: View {
                 LearnLink(page: .discoveries, title: "Discoveries", detail: "\(model.analysis.effects.filter(\.isSolid).count) solid patterns found in your history")
                 LearnLink(page: .explorer, title: "Explorer", detail: "Any metric against any other")
                 LearnLink(page: .patterns, title: "Patterns", detail: "Calendar, weekday rhythm, distributions")
+                LearnLink(page: .allData, title: "All Apple Health data", detail: "\(model.extraMetricKeys.count) more types beyond the scores")
                 LearnLink(page: .glossary, title: "What everything means", detail: "Every score and term, in plain words")
                 LearnLink(page: .weekly, title: "Weekly report", detail: model.analysis.weekly.map { String(format: "Last week averaged %.0f%%", $0.averageRecovery) } ?? "After your first full week")
             }
@@ -247,15 +249,27 @@ struct ExplorerPage: View {
         "Sleep %": { _, s in s.sleep?.performance },
     ]
 
+    /// Built-in metrics plus every extra Apple Health type that has data.
+    private var allXs: [String: (DayRecord, DayScore) -> Double?] {
+        var out = xs
+        for k in model.extraMetricKeys { out[HealthCatalog.label(k)] = { d, _ in d.extras?[k] } }
+        return out
+    }
+    private var allYs: [String: (DayRecord, DayScore) -> Double?] {
+        var out = ys
+        for k in model.extraMetricKeys { out[HealthCatalog.label(k)] = { d, _ in d.extras?[k] } }
+        return out
+    }
+
     var body: some View {
         let pts = points()
         let fit = regression(pts)
         EmberPage {
             InfoLabel(text: "Explorer", accent: true, info: "Plot any metric against any other across your history. 'Next morning' pairs each day with the following morning's value, which is how habits show their effect.")
             HStack {
-                Picker("X", selection: $x) { ForEach(xs.keys.sorted(), id: \.self) { Text($0) } }
+                Picker("X", selection: $x) { ForEach(allXs.keys.sorted(), id: \.self) { Text($0) } }
                 Text("vs").font(.mono(10)).foregroundStyle(Ember.bone3)
-                Picker("Y", selection: $y) { ForEach(ys.keys.sorted(), id: \.self) { Text($0) } }
+                Picker("Y", selection: $y) { ForEach(allYs.keys.sorted(), id: \.self) { Text($0) } }
             }
             .tint(Ember.bone)
             Picker("Timing", selection: $nextMorning) { Text("Same day").tag(false); Text("Next morning").tag(true) }.pickerStyle(.segmented)
@@ -287,7 +301,7 @@ struct ExplorerPage: View {
     }
 
     private func points() -> [(Double, Double)] {
-        guard let fx = xs[x], let fy = ys[y] else { return [] }
+        guard let fx = allXs[x], let fy = allYs[y] else { return [] }
         let keys = model.analysis.orderedKeys
         return keys.enumerated().compactMap { i, k in
             let yk = nextMorning ? (i + 1 < keys.count ? keys[i + 1] : nil) : k

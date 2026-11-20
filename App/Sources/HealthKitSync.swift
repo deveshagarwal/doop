@@ -6,6 +6,10 @@ import HealthKit
 /// not transfer, which is why the optional Google connection exists.
 final class HealthKitSync: @unchecked Sendable {
     let store = HKHealthStore()
+    /// Display unit per extra type from the last sync (the phone's preferred units).
+    private(set) var extraUnits: [String: String] = [:]
+    /// WHOOP's own Recovery score, which it attaches to each night's sleep samples, by morning.
+    private var whoopRecovery: [String: Double] = [:]
 
     static var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
@@ -33,7 +37,7 @@ final class HealthKitSync: @unchecked Sendable {
         s.insert(HKObjectType.workoutType())
         s.insert(HKCharacteristicType(.dateOfBirth))
         s.insert(HKCharacteristicType(.biologicalSex))
-        return s
+        return s.union(HealthCatalog.readTypes)
     }
 
     func requestAuthorization() async throws {
@@ -130,8 +134,10 @@ final class HealthKitSync: @unchecked Sendable {
 
         // Heart rate: one-minute averages computed by HealthKit itself (far cheaper than raw samples).
         do {
+            // Minute-level heart rate stays at 90 days at most; it's by far the largest data.
+            let hrStart = max(start, end.addingTimeInterval(-90 * 86400))
             let minutes = try await statistics(.heartRate, unit: .count().unitDivided(by: .minute()), option: .discreteAverage,
-                                               start: start, end: end, interval: DateComponents(minute: 1))
+                                               start: hrStart, end: end, interval: DateComponents(minute: 1))
             var byDay: [String: [HRSample]] = [:]
             for (t, v) in minutes { byDay[DayKey.string(from: t), default: []].append(HRSample(t: t, bpm: v)) }
             for (k, list) in byDay { update(k) { $0.hrSamples = list; $0.hrSyncedAt = Date() } }
@@ -153,6 +159,31 @@ final class HealthKitSync: @unchecked Sendable {
                 note(label, "\(values.count) days")
             } catch { note(label, error.localizedDescription, true) }
         }
+
+        // Everything else Apple Health holds: one daily value per type in the phone's preferred units.
+        var found = 0
+        if let units = try? await store.preferredUnits(for: Set(HealthCatalog.quantities.map { HKQuantityType($0) })) {
+            for (type, unit) in units {
+                let id = HKQuantityTypeIdentifier(rawValue: type.identifier)
+                let option: HKStatisticsOptions = type.aggregationStyle == .cumulative ? .cumulativeSum : .discreteAverage
+                guard let values = try? await statistics(id, unit: unit, option: option, start: start, end: end, interval: DateComponents(day: 1)),
+                      !values.isEmpty else { continue }
+                let percent = unit == .percent()
+                for (t, v) in values { update(DayKey.string(from: t)) { $0.extras = ($0.extras ?? [:]).merging([id.rawValue: percent ? v * 100 : v]) { _, n in n } } }
+                extraUnits[id.rawValue] = percent ? "%" : unit.unitString
+                found += 1
+            }
+        }
+        for id in HealthCatalog.events {
+            guard let raw: [HKCategorySample] = try? await samples(HKCategoryType(id), start: start, end: end), !raw.isEmpty else { continue }
+            var byDay: [String: Double] = [:]
+            for s in raw { byDay[DayKey.string(from: s.startDate), default: 0] += 1 }
+            let key = HealthCatalog.eventKey(id)
+            for (k, n) in byDay { update(k) { $0.extras = ($0.extras ?? [:]).merging([key: n]) { _, x in x } } }
+            extraUnits[key] = "count"
+            found += 1
+        }
+        note("Other Apple Health data", found == 0 ? "none found" : "\(found) more types")
 
         // Overnight vitals, grouped to the morning they belong to.
         let nightly: [(String, HKQuantityTypeIdentifier, HKUnit, (inout DayRecord, [Double]) -> Void)] = [
@@ -186,6 +217,8 @@ final class HealthKitSync: @unchecked Sendable {
                 }
                 update(k) { $0.sleepSessions = sorted }
             }
+            for (k, v) in whoopRecovery { update(k) { $0.extras = ($0.extras ?? [:]).merging(["WHOOP Recovery": v]) { _, n in n } } }
+            if !whoopRecovery.isEmpty { extraUnits["WHOOP Recovery"] = "%" }
             note("Sleep", "\(sessions.count) sessions")
         } catch { note("Sleep", error.localizedDescription, true) }
 
@@ -308,35 +341,51 @@ final class HealthKitSync: @unchecked Sendable {
     }
 
     /// HealthKit delivers sleep as stage spans; stitch them into sessions (a gap over an hour splits sessions).
+    /// Several apps can write the same night (say WHOOP and the Fitbit app). Each app's nights are built
+    /// separately and, where nights overlap, the one with real stages wins, then the longer one, so sleep is never
+    /// counted twice.
     private func sleepSessions(start: Date, end: Date) async throws -> [SleepSession] {
         let raw: [HKCategorySample] = try await samples(HKCategoryType(.sleepAnalysis), start: start, end: end)
-        let hasStages = raw.contains { HKCategoryValueSleepAnalysis(rawValue: $0.value) != .inBed }
-        let spans: [StageSpan] = raw.compactMap { s in
-            let stage: SleepStage
-            switch HKCategoryValueSleepAnalysis(rawValue: s.value) {
-            case .inBed: if hasStages { return nil }; stage = .unknown
-            case .awake: stage = .awake
-            case .asleepCore: stage = .light
-            case .asleepDeep: stage = .deep
-            case .asleepREM: stage = .rem
-            default: stage = .unknown
-            }
-            return StageSpan(stage: stage, start: s.startDate, end: s.endDate)
-        }.sorted { $0.start < $1.start }
+        for s in raw {
+            if let v = s.metadata?["WHOOP Recovery"], let score = Double("\(v)") { whoopRecovery[DayKey.string(from: s.endDate)] = score }
+        }
+        let bySource = Dictionary(grouping: raw) { $0.sourceRevision.source.bundleIdentifier }
+        var candidates: [(session: SleepSession, staged: Bool)] = []
+        for (_, samples) in bySource {
+            let hasStages = samples.contains { HKCategoryValueSleepAnalysis(rawValue: $0.value) != .inBed }
+            let spans: [StageSpan] = samples.compactMap { s in
+                let stage: SleepStage
+                switch HKCategoryValueSleepAnalysis(rawValue: s.value) {
+                case .inBed: if hasStages { return nil }; stage = .unknown
+                case .awake: stage = .awake
+                case .asleepCore: stage = .light
+                case .asleepDeep: stage = .deep
+                case .asleepREM: stage = .rem
+                default: stage = .unknown
+                }
+                return StageSpan(stage: stage, start: s.startDate, end: s.endDate)
+            }.sorted { $0.start < $1.start }
 
-        var sessions: [SleepSession] = []
-        var current: [StageSpan] = []
-        for span in spans {
-            if let last = current.last, span.start.timeIntervalSince(last.end) > 3600 {
-                if let s = SleepSession.from(stages: current, id: "hk-\(Int(current[0].start.timeIntervalSince1970))") { sessions.append(s) }
+            var current: [StageSpan] = []
+            func flush() {
+                if let s = SleepSession.from(stages: current, id: "hk-\(Int(current[0].start.timeIntervalSince1970))"), s.minutesAsleep >= 20 {
+                    candidates.append((s, s.stages.contains { [.light, .deep, .rem].contains($0.stage) }))
+                }
                 current = []
             }
-            current.append(span)
+            for span in spans {
+                if let last = current.last, span.start.timeIntervalSince(last.end) > 3600 { flush() }
+                current.append(span)
+            }
+            if !current.isEmpty { flush() }
         }
-        if !current.isEmpty, let s = SleepSession.from(stages: current, id: "hk-\(Int(current[0].start.timeIntervalSince1970))") {
-            sessions.append(s)
+        // Best first, then keep each night only if it doesn't overlap one already kept.
+        let ranked = candidates.sorted { a, b in a.staged != b.staged ? a.staged : a.session.minutesAsleep > b.session.minutesAsleep }
+        var kept: [SleepSession] = []
+        for c in ranked where !kept.contains(where: { $0.start < c.session.end && c.session.start < $0.end }) {
+            kept.append(c.session)
         }
-        return sessions.filter { $0.minutesAsleep >= 20 }
+        return kept.sorted { $0.start < $1.start }
     }
 
     private func workouts(start: Date, end: Date) async throws -> [Workout] {

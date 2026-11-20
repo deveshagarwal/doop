@@ -26,7 +26,9 @@ struct SleepPage: View {
                 if nights.count >= 3 {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            InfoLabel(text: "Nightlines", info: "Each hill is one night. Left to right is clock time, so a hill starts when you fell asleep and ends when you woke. Taller means your heart rate dropped further (deeper rest). Dashed lines are your typical bed and wake times. Tilt your phone to shift the view.")
+                            InfoLabel(text: "Nightlines", info: nights.contains(where: \.fromSleepOnly)
+                                      ? "Each hill is one night. Left to right is clock time, so a hill starts when you fell asleep and ends when you woke. Your sleep app doesn't share overnight heart rate with Apple Health, so the shape shows time asleep (raised) and awake (dips) instead. Dashed lines are your typical bed and wake times. Tilt your phone to shift the view."
+                                      : "Each hill is one night. Left to right is clock time, so a hill starts when you fell asleep and ends when you woke. Taller means your heart rate dropped further (deeper rest). Dashed lines are your typical bed and wake times. Tilt your phone to shift the view.")
                             Spacer()
                             Label9("\(nights.count) nights")
                         }
@@ -44,7 +46,18 @@ struct SleepPage: View {
                     }
                     .buttonStyle(.plain)
                 }
-                if let s = day.sleep, let main = record?.mainSleep, !main.stages.isEmpty {
+                if let main = record?.mainSleep, !main.stages.isEmpty, !main.stages.contains(where: { [.light, .deep, .rem].contains($0.stage) }) {
+                    let wakeUps = main.stages.filter { $0.stage == .awake && $0.minutes >= 1 && $0.start > main.start.addingTimeInterval(600) }.count
+                    Section9(title: "Asleep and awake",
+                             info: "Your sleep app shares when you were asleep and awake with Apple Health, but not REM, deep or light stages; those stay inside its own app.",
+                             trailing: "\(Fmt.clock(main.start)) – \(Fmt.clock(main.end))") {
+                        Hypnogram(stages: main.stages, twoLevel: true).frame(height: 70)
+                        Trio(items: [("Asleep", Fmt.hm(main.minutesAsleep), nil),
+                                     ("Awake", Fmt.hm(main.minutesAwake), nil),
+                                     ("Wake-ups", "\(wakeUps)", nil)])
+                    }
+                }
+                if let s = day.sleep, let main = record?.mainSleep, main.stages.contains(where: { [.light, .deep, .rem].contains($0.stage) }) {
                     Section9(title: "Stages", info: "Deep sleep (ember) restores the body and comes early in the night; REM (bone) is for memory and mood and comes later. Fitbit estimates stages from heart rate and movement.",
                              trailing: "\(Fmt.clock(main.start)) – \(Fmt.clock(main.end))") {
                         Hypnogram(stages: main.stages).frame(height: 110)
@@ -86,15 +99,17 @@ struct SleepPage: View {
 
 struct Hypnogram: View {
     let stages: [StageSpan]
+    /// Asleep/awake only, for sources that don't share stages.
+    var twoLevel = false
     private let order: [SleepStage] = [.awake, .rem, .light, .deep]
 
     var body: some View {
-        Chart(stages.filter { $0.stage != .unknown }, id: \.start) { s in
+        Chart(stages.filter { twoLevel || $0.stage != .unknown }, id: \.start) { s in
             RectangleMark(xStart: .value("Start", s.start), xEnd: .value("End", s.end),
-                          y: .value("Stage", s.stage.rawValue.capitalized), height: 16)
-                .foregroundStyle(Ember.stage(s.stage)).cornerRadius(2)
+                          y: .value("Stage", twoLevel ? (s.stage == .awake ? "Awake" : "Asleep") : s.stage.rawValue.capitalized), height: 16)
+                .foregroundStyle(twoLevel ? (s.stage == .awake ? Ember.bone.opacity(0.5) : Ember.ember) : Ember.stage(s.stage)).cornerRadius(2)
         }
-        .chartYScale(domain: order.map { $0.rawValue.capitalized })
+        .chartYScale(domain: twoLevel ? ["Awake", "Asleep"] : order.map { $0.rawValue.capitalized })
         .chartYAxis { AxisMarks { _ in AxisValueLabel().font(.mono(8.5)) } }
         .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 2)) { _ in AxisValueLabel(format: .dateTime.hour()).font(.mono(8.5)) } }
     }

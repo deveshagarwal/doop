@@ -29,9 +29,11 @@
 		7B6A5FFF58EEDC4E8577F411 /* IllnessDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9832050492C4375EEC6A8F85 /* IllnessDetector.swift */; };
 		7DE1AE36BFAEB679B0C1C963 /* DOOPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B68B6CBCED9B1E20B66562 /* DOOPApp.swift */; };
 		7FBFB82006A4F2420F3D48F5 /* FoodDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4023DF4FF50D02BBFEC30B5 /* FoodDatabase.swift */; };
+		8495CCF60ED3202DA98F1F83 /* HealthCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB817CA237B9A4F51BA76CDB /* HealthCatalog.swift */; };
 		8931895FF322A0832A99D57C /* SleepEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0167BC8D9576F7920DF0F50E /* SleepEngine.swift */; };
 		89C784C9B3C1383239598B6C /* foods.json in Resources */ = {isa = PBXBuildFile; fileRef = 633686B7F3AC7344CB9E0EA6 /* foods.json */; };
 		8DCF329F048C4D32B272A265 /* Regression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E64E128436760C60AF7B32 /* Regression.swift */; };
+		91DCB0855F0B6AED5A39708F /* AllHealthDataPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DDDAF73AAABB73EEBD4314E /* AllHealthDataPage.swift */; };
 		92FC64D64F998D1DB27F9C89 /* MealParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DF1B8D3F96DB44107E5009 /* MealParser.swift */; };
 		967A02C37A3145C5180259C9 /* BodyTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23656F5B76B4B1B90F71A19A /* BodyTab.swift */; };
 		972241F4FC5350BA2DDC96B6 /* Journal.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD46C45F8F26E6128E8FE18 /* Journal.swift */; };
@@ -86,6 +88,7 @@
 		0386B763C9ED38BC40B9B6CA /* DemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoData.swift; sourceTree = "<group>"; };
 		10CFBDEBAC580507DEECC8C3 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		1429A64A9CFE8E3D0D3E660E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1DDDAF73AAABB73EEBD4314E /* AllHealthDataPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllHealthDataPage.swift; sourceTree = "<group>"; };
 		23656F5B76B4B1B90F71A19A /* BodyTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyTab.swift; sourceTree = "<group>"; };
 		2B0BB34C57D817F45332DF26 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3017B3154E020DB08D71C02F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -120,6 +123,7 @@
 		AE9CA6C727B4C6F7F8EA2C36 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		B3BD7C9C7D258CDCAFA68BF7 /* AutoLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoLog.swift; sourceTree = "<group>"; };
 		B4F1BE6FA2A0965DA3CF279C /* GlassOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassOrbView.swift; sourceTree = "<group>"; };
+		BB817CA237B9A4F51BA76CDB /* HealthCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthCatalog.swift; sourceTree = "<group>"; };
 		C4023DF4FF50D02BBFEC30B5 /* FoodDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDatabase.swift; sourceTree = "<group>"; };
 		C502F7FEC6EE58212BB2438C /* HealthAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAPIClient.swift; sourceTree = "<group>"; };
 		C9643D1F55615A137655FA1E /* HealthKitSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSync.swift; sourceTree = "<group>"; };
@@ -170,6 +174,7 @@
 		30337DFC3770C415FBC7A478 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				1DDDAF73AAABB73EEBD4314E /* AllHealthDataPage.swift */,
 				23656F5B76B4B1B90F71A19A /* BodyTab.swift */,
 				AE53D8F1889C0781CF316985 /* FuelTab.swift */,
 				9C8F5DE712D0509E4D5542E3 /* GlassOrb.metal */,
@@ -198,6 +203,7 @@
 			isa = PBXGroup;
 			children = (
 				384A5096C5DCAB4858244FCB /* ContextSources.swift */,
+				BB817CA237B9A4F51BA76CDB /* HealthCatalog.swift */,
 				C9643D1F55615A137655FA1E /* HealthKitSync.swift */,
 				F496CE41D657C7153F5E37CE /* Platform.swift */,
 				8573ACAFE9D29C9CADA455AB /* WidgetBridge.swift */,
@@ -411,6 +417,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				91DCB0855F0B6AED5A39708F /* AllHealthDataPage.swift in Sources */,
 				C6636B352F96C1D273C26026 /* Analyzer.swift in Sources */,
 				ED1F39964D7B6ECB473BEC04 /* AppModel.swift in Sources */,
 				096108AEFE3BF291481C3930 /* AskClaudeSummary.swift in Sources */,
@@ -430,6 +437,7 @@
 				E3F7257845ACF248F87726D7 /* GoogleAuth.swift in Sources */,
 				A67DC01AB3050299104BFE95 /* GoogleSync.swift in Sources */,
 				212AFF17CCEECACBD172F9FF /* HealthAPIClient.swift in Sources */,
+				8495CCF60ED3202DA98F1F83 /* HealthCatalog.swift in Sources */,
 				60F8C2475E8BBD64C7E974F4 /* HealthKitSync.swift in Sources */,
 				7B6A5FFF58EEDC4E8577F411 /* IllnessDetector.swift in Sources */,
 				972241F4FC5350BA2DDC96B6 /* Journal.swift in Sources */,

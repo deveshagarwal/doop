@@ -18,6 +18,8 @@ public struct StoreSnapshot: Codable, Sendable {
     public var notifiedAlerts: Set<String> = []
     /// Meals logged in DOOP. The source of truth; Apple Health gets a copy.
     public var foodLog: [LoggedMeal] = []
+    /// Display unit per extra Apple Health type, e.g. "mmHg" or "count/min".
+    public var extraUnits: [String: String] = [:]
 
     public init() {}
 
@@ -34,6 +36,7 @@ public struct StoreSnapshot: Codable, Sendable {
         newestSample = try c.decodeIfPresent([String: Date].self, forKey: .newestSample) ?? [:]
         notifiedAlerts = try c.decodeIfPresent(Set<String>.self, forKey: .notifiedAlerts) ?? []
         foodLog = try c.decodeIfPresent([LoggedMeal].self, forKey: .foodLog) ?? []
+        extraUnits = try c.decodeIfPresent([String: String].self, forKey: .extraUnits) ?? [:]
     }
 
     /// Apple Health as the base, Google filling gaps and supplying HRV.
