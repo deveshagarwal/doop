@@ -48,6 +48,7 @@
 		C483196E1BE063816B5C1208 /* SleepTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91BD303B3D2428D682E4F541 /* SleepTab.swift */; };
 		C6636B352F96C1D273C26026 /* Analyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB302A29D30FC0C9E0115C54 /* Analyzer.swift */; };
 		C9D54861F2755E888FD693EE /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA3F6D20D91B5F85964E9C61 /* Store.swift */; };
+		D6B77513F328CBC190A6EEA4 /* BodySignals.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE5DC37383E626179E1BF22 /* BodySignals.swift */; };
 		E3F7257845ACF248F87726D7 /* GoogleAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422D9FCCB306A4F821B8DB8F /* GoogleAuth.swift */; };
 		E68AF7245FB8E3743175B8BA /* LogMealSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97F5FF841F83F452CD3FE426 /* LogMealSheet.swift */; };
 		E85B83AC87A2ABD8F5E0D673 /* EnergyBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5A1984693F77AAF66A6276 /* EnergyBudget.swift */; };
@@ -128,6 +129,7 @@
 		C502F7FEC6EE58212BB2438C /* HealthAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAPIClient.swift; sourceTree = "<group>"; };
 		C9643D1F55615A137655FA1E /* HealthKitSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSync.swift; sourceTree = "<group>"; };
 		CA26B5C4E0257665A7C4BDA3 /* RecoveryEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryEngine.swift; sourceTree = "<group>"; };
+		DCE5DC37383E626179E1BF22 /* BodySignals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodySignals.swift; sourceTree = "<group>"; };
 		DF6396924713514EA8CFBC4C /* FoodLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLog.swift; sourceTree = "<group>"; };
 		E1FDC0A6BD45B0D05B749420 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		E5B423DF3462852B9CF3D573 /* DayKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayKey.swift; sourceTree = "<group>"; };
@@ -246,6 +248,7 @@
 				AB302A29D30FC0C9E0115C54 /* Analyzer.swift */,
 				B3BD7C9C7D258CDCAFA68BF7 /* AutoLog.swift */,
 				3892CE5346FB847643D792B8 /* Baselines.swift */,
+				DCE5DC37383E626179E1BF22 /* BodySignals.swift */,
 				AC5A1984693F77AAF66A6276 /* EnergyBudget.swift */,
 				9832050492C4375EEC6A8F85 /* IllnessDetector.swift */,
 				CA26B5C4E0257665A7C4BDA3 /* RecoveryEngine.swift */,
@@ -423,6 +426,7 @@
 				096108AEFE3BF291481C3930 /* AskClaudeSummary.swift in Sources */,
 				2870354214B02CFD11C26A3C /* AutoLog.swift in Sources */,
 				A29AC023D48B39FC723045E8 /* Baselines.swift in Sources */,
+				D6B77513F328CBC190A6EEA4 /* BodySignals.swift in Sources */,
 				967A02C37A3145C5180259C9 /* BodyTab.swift in Sources */,
 				B30C7D5B1CED7EFB84E0CF6D /* ContextSources.swift in Sources */,
 				7DE1AE36BFAEB679B0C1C963 /* DOOPApp.swift in Sources */,
