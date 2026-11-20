@@ -1,15 +1,16 @@
 import SwiftUI
 import Charts
 
-enum LearnPage: Hashable { case effects, discoveries, explorer, patterns, weekly, glossary }
+enum LearnPage: Hashable { case forYou, effects, discoveries, explorer, patterns, weekly, glossary }
 
 struct LearnTab: View {
-    @State private var path: [LearnPage] = LaunchArgs.page.flatMap { ["effects": LearnPage.effects, "discoveries": .discoveries, "explorer": .explorer, "patterns": .patterns, "weekly": .weekly][$0] }.map { [$0] } ?? []
+    @State private var path: [LearnPage] = LaunchArgs.page.flatMap { ["foryou": LearnPage.forYou, "effects": LearnPage.effects, "discoveries": .discoveries, "explorer": .explorer, "patterns": .patterns, "weekly": .weekly][$0] }.map { [$0] } ?? []
     var body: some View {
         NavigationStack(path: $path) {
             LearnHome()
                 .navigationDestination(for: LearnPage.self) { p in
                     switch p {
+                    case .forYou: ForYouPage()
                     case .effects: EffectsPage()
                     case .discoveries: DiscoveriesPage()
                     case .explorer: ExplorerPage()
@@ -18,6 +19,7 @@ struct LearnTab: View {
                     case .glossary: GlossaryPage()
                     }
                 }
+                .navigationDestination(for: TodayPage.self) { todayDestination($0) }
         }
     }
 }
@@ -28,6 +30,7 @@ struct LearnHome: View {
         EmberPage {
             DayLog()
             VStack(spacing: 10) {
+                LearnLink(page: .forYou, title: "For you", detail: model.analysis.suggestions.first?.title ?? "Suggestions from your own data")
                 LearnLink(page: .effects, title: "What moves you", detail: "Each habit's effect on your next morning")
                 LearnLink(page: .discoveries, title: "Discoveries", detail: "\(model.analysis.effects.filter(\.isSolid).count) solid patterns found in your history")
                 LearnLink(page: .explorer, title: "Explorer", detail: "Any metric against any other")

@@ -19,19 +19,22 @@ struct TodayTab: View {
                 else if let t = model.today { Home(day: t, showSettings: $showSettings) }
                 else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(Ember.ink) }
             }
-            .navigationDestination(for: TodayPage.self) { page in
-                switch page {
-                case .recovery: RecoveryPage()
-                case .strain: StrainPage()
-                case .sleep: SleepPage()
-                case .tonight: TonightPlanner()
-                case .forYou: ForYouPage()
-                case .glossary: GlossaryPage()
-                case .workout(let day, let id): WorkoutPage(day: day, workoutID: id)
-                }
-            }
+            .navigationDestination(for: TodayPage.self) { todayDestination($0) }
             .sheet(isPresented: $showSettings) { SettingsView() }
         }
+    }
+}
+
+/// Today's deep dives, also reachable from Learn (For you) and Fuel.
+@ViewBuilder func todayDestination(_ page: TodayPage) -> some View {
+    switch page {
+    case .recovery: RecoveryPage()
+    case .strain: StrainPage()
+    case .sleep: SleepPage()
+    case .tonight: TonightPlanner()
+    case .forYou: ForYouPage()
+    case .glossary: GlossaryPage()
+    case .workout(let day, let id): WorkoutPage(day: day, workoutID: id)
     }
 }
 
@@ -64,12 +67,11 @@ struct Home: View {
                     if let q = model.analysis.question { QuestionCard(question: q).padding(.bottom, 14) }
                     Text(verdict).font(.system(size: 14.5)).foregroundStyle(Ember.bone2).multilineTextAlignment(.center)
                 }
-                heroes.padding(.top, 18)
-                if day.recovery != nil, let s = model.analysis.suggestions.first { topSuggestion(s).padding(.top, 16) }
+                heroes.padding(.top, 22)
 
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+            .padding(.bottom, 36)
             .foregroundStyle(Ember.bone)
         }
         .modifier(HeartbeatHaptics(bpm: bpm))
@@ -105,20 +107,6 @@ struct Home: View {
     }
 
     private var divider: some View { Rectangle().fill(Ember.hair).frame(width: 1, height: 70) }
-
-    private func topSuggestion(_ s: Suggestion) -> some View {
-        NavigationLink(value: s.kind == .bedtime ? TodayPage.tonight : .forYou) {
-            HStack(spacing: 10) {
-                Text("FOR YOU").font(.mono(9, .semibold)).foregroundStyle(Ember.ember)
-                Text(s.title).font(.system(size: 12.5)).lineLimit(1).foregroundStyle(Ember.bone)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(Ember.bone3)
-            }
-            .padding(.horizontal, 14).padding(.vertical, 11)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 18))
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 struct HeroNumber: View {
