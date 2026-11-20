@@ -120,10 +120,10 @@ struct HomeHeadline: View {
     var body: some View {
         VStack(spacing: 10) {
             TabView(selection: $page) {
-                slide(bpm.map { "\(Int($0))" } ?? "–", "bpm", bpm == nil ? "RESTING HR · AFTER A NIGHT WITH THE BAND" : "RESTING · THE SPHERE BEATS AT IT").tag(0)
-                slide(kcalLeft.map { "\(Int($0.rounded()).formatted())" } ?? "–", "kcal",
-                      (kcalLeft ?? 0) < 0 ? "OVER TODAY'S TARGET" : "LEFT TO EAT TODAY").tag(1)
-                slide(weightChange.map { String(format: "%+.1f", $0) } ?? "–", "kg", "SINCE YOUR FIRST WEIGH-IN").tag(2)
+                slide(bpm.map { "\(Int($0))" } ?? "–", "bpm", "Resting heart rate").tag(0)
+                slide(kcalLeft.map { "\(Int(abs($0).rounded()).formatted())" } ?? "–", "kcal",
+                      (kcalLeft ?? 0) < 0 ? "Calories over today" : "Calories left today").tag(1)
+                slide(weightChange.map { String(format: "%+.1f", $0) } ?? "–", "kg", "Since first weigh-in").tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 128)
@@ -155,7 +155,7 @@ struct HomeHeadline: View {
                 Text(value).font(.ultra(96)).monospacedDigit().tracking(-3).minimumScaleFactor(0.6).lineLimit(1)
                 Text(unit).font(.light(20)).foregroundStyle(Ember.bone3)
             }
-            Text(label).font(.mono(10, .semibold)).tracking(1.5).foregroundStyle(Ember.ember)
+            Label9(label)
         }
         .foregroundStyle(Ember.bone)
         .frame(maxWidth: .infinity)
