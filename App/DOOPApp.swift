@@ -85,9 +85,9 @@ struct RootView: View {
         TabView(selection: $model.selectedTab) {
             Tab("Today", systemImage: "circle.circle", value: AppModel.Tab.today) { TodayTab() }
             Tab("Sleep", systemImage: "moon", value: AppModel.Tab.sleep) { SleepTab() }
+            Tab("Fuel", systemImage: "flame", value: AppModel.Tab.fuel) { FuelTab() }
             Tab("Train", systemImage: "figure.run", value: AppModel.Tab.train) { TrainTab() }
             Tab("Learn", systemImage: "sparkle.magnifyingglass", value: AppModel.Tab.learn) { LearnTab() }
-            Tab("Body", systemImage: "heart.text.square", value: AppModel.Tab.body) { BodyTab() }
         }
         .alert("Something went wrong", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }

@@ -61,6 +61,11 @@ struct SettingsView: View {
                         TextField("\(Int(model.settings.maxHR)) (estimated)", text: $maxHR).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                             .onSubmit { model.updateSettings { $0.maxHROverride = Double(maxHR) } }
                     }
+                    Picker("Weight goal", selection: Binding(get: { model.settings.goalRateKgPerWeek ?? 0 }, set: { v in model.updateSettings { $0.goalRateKgPerWeek = v == 0 ? nil : v } })) {
+                        ForEach([-1.0, -0.75, -0.5, -0.25, 0, 0.25], id: \.self) { r in
+                            Text(r == 0 ? "No target" : String(format: "%+.2g kg/week", r)).tag(r)
+                        }
+                    }
                     Stepper(String(format: "Base sleep need %.1fh", model.settings.baseSleepNeedHours),
                             value: Binding(get: { model.settings.baseSleepNeedHours }, set: { v in model.updateSettings { $0.baseSleepNeedHours = v } }), in: 6...10, step: 0.25)
                 }

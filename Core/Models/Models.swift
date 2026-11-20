@@ -121,12 +121,19 @@ public struct Meal: Codable, Hashable, Sendable {
     public var proteinG: Double?
     public var caffeineMg: Double?
     public var alcoholG: Double?
-    public init(time: Date, kcal: Double? = nil, proteinG: Double? = nil, caffeineMg: Double? = nil, alcoholG: Double? = nil) {
+    public var carbG: Double?
+    public var fatG: Double?
+    public var fiberG: Double?
+    public init(time: Date, kcal: Double? = nil, proteinG: Double? = nil, caffeineMg: Double? = nil, alcoholG: Double? = nil,
+                carbG: Double? = nil, fatG: Double? = nil, fiberG: Double? = nil) {
         self.time = time
         self.kcal = kcal
         self.proteinG = proteinG
         self.caffeineMg = caffeineMg
         self.alcoholG = alcoholG
+        self.carbG = carbG
+        self.fatG = fatG
+        self.fiberG = fiberG
     }
 }
 
@@ -178,6 +185,10 @@ public struct UserSettings: Codable, Sendable, Equatable {
     public var notifyIllness: Bool = true
     public var notifyRecovery: Bool = true
     public var notifyBedtime: Bool = true
+    /// Weight goal pace, kg per week (negative to lose). nil tracks food with no calorie target.
+    public var goalRateKgPerWeek: Double? = -0.75
+    /// From Apple Health when set there; used for the starting burn estimate before DOOP has learned yours.
+    public var heightCm: Double?
 
     public init() {}
 
@@ -194,6 +205,8 @@ public struct UserSettings: Codable, Sendable, Equatable {
         notifyIllness = try c.decodeIfPresent(Bool.self, forKey: .notifyIllness) ?? d.notifyIllness
         notifyRecovery = try c.decodeIfPresent(Bool.self, forKey: .notifyRecovery) ?? d.notifyRecovery
         notifyBedtime = try c.decodeIfPresent(Bool.self, forKey: .notifyBedtime) ?? d.notifyBedtime
+        goalRateKgPerWeek = c.contains(.goalRateKgPerWeek) ? try c.decodeIfPresent(Double.self, forKey: .goalRateKgPerWeek) : d.goalRateKgPerWeek
+        heightCm = try c.decodeIfPresent(Double.self, forKey: .heightCm)
     }
 
     /// Tanaka et al. 2001: 208 − 0.7 × age.

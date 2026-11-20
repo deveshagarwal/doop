@@ -13,7 +13,7 @@ final class AppModel {
     var errorMessage: String?
     var selectedTab: Tab = .today
 
-    enum Tab: Hashable { case today, sleep, train, learn, body }
+    enum Tab: Hashable { case today, sleep, fuel, train, learn }
 
     private let store = Store()
     private let healthKit = HealthKitSync()
@@ -29,7 +29,7 @@ final class AppModel {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("--demo") { snapshot.settings.demoMode = true }
         if let i = args.firstIndex(of: "--tab"), i + 1 < args.count {
-            selectedTab = ["sleep": .sleep, "train": .train, "learn": .learn, "body": .body][args[i + 1]] ?? .today
+            selectedTab = ["sleep": .sleep, "train": .train, "learn": .learn, "fuel": .fuel][args[i + 1]] ?? .today
         }
         if snapshot.settings.demoMode { demo = DemoData.generate() }
         recompute()
@@ -44,7 +44,7 @@ final class AppModel {
     var isGoogleConnected: Bool { googleAuth.isConnected }
     var hasAppleHealthData: Bool { !snapshot.days.isEmpty }
     /// True once any food app has written nutrition to Apple Health; food UI stays hidden until then.
-    var hasMealData: Bool { snapshot.newestSample["meals"] != nil }
+    var hasMealData: Bool { !snapshot.foodLog.isEmpty || snapshot.newestSample["meals"] != nil }
     var hasAnyData: Bool { !days.isEmpty }
     var calendarConnected: Bool { calendar.isAuthorized }
     var isDemo: Bool { demo != nil }
@@ -83,6 +83,50 @@ final class AppModel {
         if demo != nil { demo?.journal[day] = entry } else { snapshot.journal[day] = entry }
         persist()
         recompute()
+    }
+
+    // MARK: Food
+
+    /// The bundled USDA database, loaded on first use (about 5,400 foods).
+    @ObservationIgnored private(set) lazy var foodDB: FoodDatabase? = Bundle.main.url(forResource: "foods", withExtension: "json")
+        .flatMap { try? Data(contentsOf: $0) }.flatMap { try? FoodDatabase(json: $0) }
+    @ObservationIgnored private(set) lazy var mealParser: MealParser? = foodDB.map { MealParser(db: $0) }
+
+    var foodLog: [LoggedMeal] { snapshot.foodLog }
+
+    func meals(on day: String) -> [LoggedMeal] {
+        snapshot.foodLog.filter { DayKey.string(from: $0.time) == day }.sorted { $0.time < $1.time }
+    }
+
+    /// Meals logged most often, newest first among ties, for one-tap repeats.
+    var recentMeals: [LoggedMeal] {
+        var seen = Set<String>(), out: [LoggedMeal] = []
+        for m in snapshot.foodLog.sorted(by: { $0.time > $1.time }) where seen.insert(m.title).inserted {
+            out.append(m)
+            if out.count == 8 { break }
+        }
+        return out
+    }
+
+    var budget: EnergyBudget? { EnergyBudget.compute(days: days, settings: settings) }
+
+    /// Adds or replaces a meal, then mirrors it to Apple Health.
+    func saveMeal(_ meal: LoggedMeal) {
+        if let i = snapshot.foodLog.firstIndex(where: { $0.id == meal.id }) { snapshot.foodLog[i] = meal } else { snapshot.foodLog.append(meal) }
+        persist()
+        recompute()
+        guard HealthKitSync.isAvailable else { return }
+        Task {
+            try? await healthKit.requestAuthorization()
+            try? await healthKit.write(meal)
+        }
+    }
+
+    func deleteMeal(_ meal: LoggedMeal) {
+        snapshot.foodLog.removeAll { $0.id == meal.id }
+        persist()
+        recompute()
+        Task { try? await healthKit.deleteMeal(id: meal.id) }
     }
 
     private func persist() { store.save(snapshot) }
@@ -196,6 +240,7 @@ final class AppModel {
             if let n = r.newest { snapshot.newestSample["appleHealth"] = n }
             if let w = r.days.values.filter({ $0.weightKg != nil }).map(\.date).max() { snapshot.newestSample["weight"] = DayKey.date(from: w) }
             if let m = r.days.values.compactMap({ $0.meals?.map(\.time).max() }).max() { snapshot.newestSample["meals"] = m }
+            if snapshot.settings.heightCm == nil, let h = await healthKit.heightCm() { snapshot.settings.heightCm = h }
             log += r.log
         }
 

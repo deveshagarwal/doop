@@ -13,8 +13,18 @@ final class HealthKitSync: @unchecked Sendable {
         .heartRate, .restingHeartRate, .heartRateVariabilitySDNN, .respiratoryRate, .oxygenSaturation,
         .appleSleepingWristTemperature, .bodyTemperature, .vo2Max, .stepCount, .activeEnergyBurned,
         // Written by other apps: Omada (weight), any food logger (meals, caffeine, alcohol).
-        .bodyMass, .dietaryEnergyConsumed, .dietaryProtein, .dietaryCaffeine, .numberOfAlcoholicBeverages,
+        .bodyMass, .height, .dietaryEnergyConsumed, .dietaryProtein, .dietaryCarbohydrates, .dietaryFatTotal, .dietaryFiber,
+        .dietaryCaffeine, .numberOfAlcoholicBeverages,
     ]
+
+    /// What DOOP writes: meals you log, so other apps (and Nourish, if it reads nutrition) can see them.
+    static let foodWrites: [(HKQuantityTypeIdentifier, HKUnit, KeyPath<Nutrients, Double>)] = [
+        (.dietaryEnergyConsumed, .kilocalorie(), \.kcal), (.dietaryProtein, .gram(), \.protein),
+        (.dietaryCarbohydrates, .gram(), \.carb), (.dietaryFatTotal, .gram(), \.fat), (.dietaryFiber, .gram(), \.fiber),
+        (.dietarySugar, .gram(), \.sugar), (.dietarySodium, .gramUnit(with: .milli), \.sodium),
+        (.dietaryCaffeine, .gramUnit(with: .milli), \.caffeine),
+    ]
+    static let mealIDKey = "DOOPMealID"
 
     private var readTypes: Set<HKObjectType> {
         var s = Set<HKObjectType>(quantityTypes.map { HKQuantityType($0) })
@@ -27,7 +37,43 @@ final class HealthKitSync: @unchecked Sendable {
     }
 
     func requestAuthorization() async throws {
-        try await store.requestAuthorization(toShare: [], read: readTypes)
+        try await store.requestAuthorization(toShare: Set(Self.foodWrites.map { HKQuantityType($0.0) }), read: readTypes)
+    }
+
+    /// Height in cm from the Health profile, if any app has recorded it.
+    func heightCm() async -> Double? {
+        let h = try? await quantitySamples(.height, unit: .meterUnit(with: .centi), start: .distantPast, end: Date())
+        return h?.last?.1
+    }
+
+    // MARK: Writing meals
+
+    /// Writes each food as an Apple Health food entry tagged with the meal's id, replacing any earlier copy.
+    func write(_ meal: LoggedMeal) async throws {
+        try await deleteMeal(id: meal.id)
+        var objects: [HKObject] = []
+        for item in meal.items {
+            let meta: [String: Any] = [HKMetadataKeyFoodType: LoggedMeal.shortName(item.name), Self.mealIDKey: meal.id.uuidString]
+            let samples: Set<HKSample> = Set(Self.foodWrites.compactMap { id, unit, kp in
+                let v = item.nutrients[keyPath: kp]
+                guard v > 0 else { return nil }
+                return HKQuantitySample(type: HKQuantityType(id), quantity: HKQuantity(unit: unit, doubleValue: v),
+                                        start: meal.time, end: meal.time, metadata: meta)
+            })
+            guard !samples.isEmpty else { continue }
+            objects.append(HKCorrelation(type: HKCorrelationType(.food), start: meal.time, end: meal.time, objects: samples, metadata: meta))
+        }
+        guard !objects.isEmpty else { return }
+        try await store.save(objects)
+    }
+
+    /// Removes a meal DOOP wrote earlier (only DOOP's own entries can be deleted).
+    func deleteMeal(id: UUID) async throws {
+        let p = HKQuery.predicateForObjects(withMetadataKey: Self.mealIDKey, allowedValues: [id.uuidString])
+        for (type, _, _) in Self.foodWrites {
+            _ = try? await store.deleteObjects(of: HKQuantityType(type), predicate: p)
+        }
+        _ = try? await store.deleteObjects(of: HKCorrelationType(.food), predicate: p)
     }
 
     /// Age and sex from the Health profile, if set.
@@ -210,8 +256,10 @@ final class HealthKitSync: @unchecked Sendable {
         }
     }
 
-    private func quantitySamples(_ id: HKQuantityTypeIdentifier, unit: HKUnit, start: Date, end: Date) async throws -> [(Date, Double)] {
-        let samples: [HKQuantitySample] = try await samples(HKQuantityType(id), start: start, end: end)
+    private func quantitySamples(_ id: HKQuantityTypeIdentifier, unit: HKUnit, start: Date, end: Date,
+                                 otherAppsOnly: Bool = false) async throws -> [(Date, Double)] {
+        var samples: [HKQuantitySample] = try await samples(HKQuantityType(id), start: start, end: end)
+        if otherAppsOnly { samples = samples.filter { $0.metadata?[Self.mealIDKey] == nil } }
         return samples.map { ($0.startDate, $0.quantity.doubleValue(for: unit)) }
     }
 
@@ -226,11 +274,14 @@ final class HealthKitSync: @unchecked Sendable {
     }
 
     /// Nutrition samples grouped into meals: entries within 20 minutes of each other are one meal.
+    /// DOOP's own meals are skipped here; they come from its food log so they aren't counted twice.
     private func mealSamples(start: Date, end: Date) async throws -> [Meal] {
-        let kcal = try await quantitySamples(.dietaryEnergyConsumed, unit: .kilocalorie(), start: start, end: end)
-        let protein = try await quantitySamples(.dietaryProtein, unit: .gram(), start: start, end: end)
-        let caffeine = try await quantitySamples(.dietaryCaffeine, unit: .gramUnit(with: .milli), start: start, end: end)
-        let alcohol = try await quantitySamples(.numberOfAlcoholicBeverages, unit: .count(), start: start, end: end)
+        let kcal = try await quantitySamples(.dietaryEnergyConsumed, unit: .kilocalorie(), start: start, end: end, otherAppsOnly: true)
+        let protein = try await quantitySamples(.dietaryProtein, unit: .gram(), start: start, end: end, otherAppsOnly: true)
+        let carbs = try await quantitySamples(.dietaryCarbohydrates, unit: .gram(), start: start, end: end, otherAppsOnly: true)
+        let fat = try await quantitySamples(.dietaryFatTotal, unit: .gram(), start: start, end: end, otherAppsOnly: true)
+        let caffeine = try await quantitySamples(.dietaryCaffeine, unit: .gramUnit(with: .milli), start: start, end: end, otherAppsOnly: true)
+        let alcohol = try await quantitySamples(.numberOfAlcoholicBeverages, unit: .count(), start: start, end: end, otherAppsOnly: true)
         var meals: [Meal] = []
         func slot(_ t: Date) -> Int {
             if let i = meals.firstIndex(where: { abs($0.time.timeIntervalSince(t)) < 20 * 60 }) { return i }
@@ -239,6 +290,8 @@ final class HealthKitSync: @unchecked Sendable {
         }
         for (t, v) in kcal { let i = slot(t); meals[i].kcal = (meals[i].kcal ?? 0) + v }
         for (t, v) in protein { let i = slot(t); meals[i].proteinG = (meals[i].proteinG ?? 0) + v }
+        for (t, v) in carbs { let i = slot(t); meals[i].carbG = (meals[i].carbG ?? 0) + v }
+        for (t, v) in fat { let i = slot(t); meals[i].fatG = (meals[i].fatG ?? 0) + v }
         for (t, v) in caffeine { let i = slot(t); meals[i].caffeineMg = (meals[i].caffeineMg ?? 0) + v }
         for (t, v) in alcohol { let i = slot(t); meals[i].alcoholG = (meals[i].alcoholG ?? 0) + v * 14 }
         return meals.sorted { $0.time < $1.time }

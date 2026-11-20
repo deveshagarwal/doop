@@ -17,6 +17,12 @@ public enum DayKey {
 
     public static func today() -> String { string(from: Date()) }
 
+    /// Whole days from `a` to `b` (negative if `b` is earlier).
+    public static func daysBetween(_ a: String, _ b: String) -> Int {
+        guard let x = date(from: a), let y = date(from: b) else { return 0 }
+        return Int((y.timeIntervalSince(x) / 86400).rounded())
+    }
+
     public static func addDays(_ key: String, _ n: Int) -> String {
         guard let d = date(from: key),
               let shifted = Calendar.current.date(byAdding: .day, value: n, to: d) else { return key }

@@ -102,15 +102,56 @@ let ctx = AskClaudeSummary.build(analysis: a, days: demo.days, settings: setting
 check(ctx.contains("TODAY") && ctx.contains("LAST 14 DAYS"), "summary has sections")
 print("  summary ≈ \(ctx.count / 4) tokens")
 
+print("Food")
+let foodsURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../App/Resources/foods.json").standardized
+let db = try! FoodDatabase(json: Data(contentsOf: foodsURL))
+check(db.foods.count > 5000, "USDA database loads", "\(db.foods.count)")
+check(db.search("scrambled eggs").first.map { $0.name.lowercased().contains("egg") } == true, "search finds eggs", db.search("scrambled eggs").first?.name ?? "none")
+check(PortionParser.parse("12 fl oz") == .init(count: 12, words: ["floz"], grams: nil), "parses fluid ounces")
+check(PortionParser.parse("150 g").grams == 150, "parses grams")
+check(PortionParser.parse("half a cup").count == 0.5, "parses 'half a cup'", "\(PortionParser.parse("half a cup"))")
+let milk = db.search("milk whole").first!
+let cupMilk = PortionParser.grams(of: milk, amount: "1 cup").grams
+check((230...260).contains(cupMilk), "1 cup of milk ≈ 244 g", "\(cupMilk)")
+let cola = db.search("soft drink cola").first!
+let can = PortionParser.grams(of: cola, amount: "20 fl oz").grams
+check((560...650).contains(can), "20 fl oz of cola ≈ 600 g", "\(cola.name) \(can)")
+let meal = LoggedMeal(time: Date(), text: "milk", items: [LoggedItem(food: milk, amount: "1 cup", grams: cupMilk)], source: .text)
+check(abs(meal.totals.kcal - milk.per100.kcal * cupMilk / 100) < 0.01, "meal totals scale per 100 g")
+
+print("Energy budget")
+var bdays: [String: DayRecord] = [:]
+let bend = "2026-12-31"
+for i in 0..<35 {
+    let k = DayKey.addDays(bend, -i)
+    var d = DayRecord(date: k)
+    // Eats 2,000 a day while losing 0.5 kg/week → true burn ≈ 2,000 + 550 = 2,550.
+    d.weightKg = 85 - 0.5 * Double(35 - i) / 7
+    d.meals = [Meal(time: DayKey.date(from: k)!, kcal: 2000)]
+    d.activeEnergy = 500
+    bdays[k] = d
+}
+var bs = UserSettings(); bs.age = 27; bs.sex = .male; bs.heightCm = 178; bs.goalRateKgPerWeek = -0.75
+let budget = EnergyBudget.compute(days: bdays, settings: bs, today: bend)!
+check(budget.basis == .learned, "learns burn from 28 logged days", "\(budget.basis)")
+check((2350...2750).contains(budget.burnKcal), "learned burn ≈ 2,550", "\(budget.burnKcal)")
+check(abs((budget.weeklyRateKg ?? 0) + 0.5) < 0.1, "trend rate ≈ −0.5 kg/week", "\(budget.weeklyRateKg ?? 0)")
+check(abs((budget.targetKcal ?? 0) - (budget.burnKcal - 825)) < 1, "target = burn − 825 for −0.75 kg/week")
+var noFood = bdays; for k in noFood.keys { noFood[k]?.meals = nil }
+check(EnergyBudget.compute(days: noFood, settings: bs, today: bend)?.basis == .estimated, "no logging → formula estimate")
+
 print("Store roundtrip")
 let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 let store = Store(directory: dir)
 var snap = StoreSnapshot()
 snap.days = demo.days
 snap.journal = demo.journal
+snap.foodLog = [meal]
 store.save(snap)
 let loaded = store.load()
 check(loaded.days.count == demo.days.count && loaded.journal.count == demo.journal.count, "save/load")
+check(loaded.foodLog.first?.items.first?.foodID == milk.id, "food log survives save/load")
+check(loaded.mergedDays[DayKey.today()]?.meals?.isEmpty == false, "logged meals join the day's data")
 
 print(failures == 0 ? "\nAll checks passed." : "\n\(failures) check(s) failed.")
 exit(failures == 0 ? 0 : 1)

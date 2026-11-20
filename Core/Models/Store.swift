@@ -16,6 +16,8 @@ public struct StoreSnapshot: Codable, Sendable {
     /// Newest sample timestamp seen per source, for the data-freshness readout.
     public var newestSample: [String: Date] = [:]
     public var notifiedAlerts: Set<String> = []
+    /// Meals logged in DOOP. The source of truth; Apple Health gets a copy.
+    public var foodLog: [LoggedMeal] = []
 
     public init() {}
 
@@ -31,6 +33,7 @@ public struct StoreSnapshot: Codable, Sendable {
         lastSync = try c.decodeIfPresent([String: Date].self, forKey: .lastSync) ?? [:]
         newestSample = try c.decodeIfPresent([String: Date].self, forKey: .newestSample) ?? [:]
         notifiedAlerts = try c.decodeIfPresent(Set<String>.self, forKey: .notifiedAlerts) ?? []
+        foodLog = try c.decodeIfPresent([LoggedMeal].self, forKey: .foodLog) ?? []
     }
 
     /// Apple Health as the base, Google filling gaps and supplying HRV.
@@ -41,6 +44,13 @@ public struct StoreSnapshot: Codable, Sendable {
         }
         for (k, c) in context {
             if var base = out[k] { base.merge(c); out[k] = base }
+        }
+        // DOOP's own meals join whatever other food apps wrote to Apple Health.
+        for m in foodLog {
+            let k = DayKey.string(from: m.time)
+            var base = out[k] ?? DayRecord(date: k)
+            base.meals = (base.meals ?? []) + [m.asMeal]
+            out[k] = base
         }
         return out
     }

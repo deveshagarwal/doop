@@ -1,24 +1,6 @@
 import SwiftUI
 import Charts
 
-enum BodyPage: Hashable { case health, healthspan, weight }
-
-struct BodyTab: View {
-    @State private var path: [BodyPage] = LaunchArgs.page.flatMap { ["health": BodyPage.health, "healthspan": .healthspan, "weight": .weight][$0] }.map { [$0] } ?? []
-    var body: some View {
-        NavigationStack(path: $path) {
-            EnergyPage()
-                .navigationDestination(for: BodyPage.self) { p in
-                    switch p {
-                    case .health: HealthMonitorPage()
-                    case .healthspan: HealthspanPage()
-                    case .weight: WeightFoodPage()
-                    }
-                }
-        }
-    }
-}
-
 // MARK: Energy and stress
 
 struct EnergyPage: View {
@@ -57,41 +39,11 @@ struct EnergyPage: View {
             } else {
                 PageHero(label: "Energy bank", value: 0, caption: "Appears once today's heart rate has synced.")
             }
-            Section9(title: "Breathe", info: "Box breathing: in for 4 seconds, hold 4, out 4, hold 4. Slow breathing raises HRV in the moment and helps bring a racing heart down.") {
-                BreathingView()
-            }
-            VStack(spacing: 10) {
-                BodyLink(page: .health, title: "Health monitor", detail: model.today.map { "Illness watch: \($0.illness.level.title.lowercased())" } ?? "")
-                BodyLink(page: .healthspan, title: "Healthspan",
-                         detail: model.analysis.healthspan.map { String(format: "Body age %.1f · pace %@", $0.bodyAge, $0.pace.map { String(format: "%.2f×", $0) } ?? "after 4 months") } ?? "Needs two weeks of data")
-                BodyLink(page: .weight, title: model.hasMealData ? "Weight & food" : "Weight",
-                         detail: model.hasMealData ? "Omada and your food app via Apple Health" : "From Omada via Apple Health")
-            }
         }
         .modifier(DrawIn(progress: $progress))
     }
 }
 
-struct BodyLink: View {
-    let page: BodyPage
-    let title: String
-    let detail: String
-    var body: some View {
-        NavigationLink(value: page) {
-            GlassCard {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(title).font(.system(size: 15, weight: .medium))
-                        Text(detail).font(.system(size: 12)).foregroundStyle(Ember.bone2)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold)).foregroundStyle(Ember.bone3)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
 
 struct BreathingView: View {
     @State private var running = false
@@ -297,7 +249,6 @@ struct WeightFoodPage: View {
     var body: some View {
         let keys = model.analysis.orderedKeys
         let weights: [(Date, Double)] = keys.compactMap { k in model.record(k)?.weightKg.flatMap { w in DayKey.date(from: k).map { ($0, w) } } }
-        let today = model.analysis.latestKey.flatMap { model.record($0) }
         EmberPage {
             if let last = weights.last {
                 let rate = weeklyRate(weights)
@@ -318,28 +269,6 @@ struct WeightFoodPage: View {
                 GlassCard {
                     Label9("Weight · Omada", accent: true)
                     Text("No weigh-ins yet. In the Omada app: Settings → Health Integration → Share with Health App, and turn on weight.").font(.system(size: 13))
-                }
-            }
-            if model.hasMealData {
-                Section9(title: "Today · Food", info: "Meals your food app writes to Apple Health, grouped when entries are within 20 minutes of each other.") {
-                    if let t = today, t.kcalTotal != nil {
-                        VStack(spacing: 0) {
-                            MetricRow(name: "Calories", value: "\(Int(t.kcalTotal ?? 0))", fraction: (t.kcalTotal ?? 0) / 2400, accent: true)
-                            MetricRow(name: "Protein", value: "\(Int(t.proteinTotal ?? 0)) g", fraction: (t.proteinTotal ?? 0) / 150)
-                            MetricRow(name: "Meals logged", value: "\((t.meals ?? []).filter { ($0.kcal ?? 0) > 0 }.count)")
-                        }
-                    } else {
-                        Text("No meals logged today.").font(.system(size: 13)).foregroundStyle(Ember.bone2)
-                    }
-                }
-            }
-            let food = model.analysis.effects.filter { ["high_protein", "big_dinner", "late_meal", "late_caffeine"].contains($0.factor.id) && $0.outcome == .recovery }
-            if !food.isEmpty {
-                Section9(title: "Food and your mornings", info: "How each eating pattern relates to next-morning recovery, holding your other habits steady.") {
-                    VStack(spacing: 0) {
-                        let scale = max(food.map { abs($0.effect) + $0.ci }.max() ?? 8, 4)
-                        ForEach(food) { ForestRow(effect: $0, scale: scale, unit: "pts") }
-                    }
                 }
             }
         }
