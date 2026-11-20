@@ -32,8 +32,10 @@ The first sync pulls 90 days. Recovery shows "calibrating" until there are 5 nig
 5. Credentials → Create OAuth client ID → **iOS**, bundle ID `com.dagarwal.doop` (or yours). Copy the client ID.
 6. DOOP → Settings → paste the client ID → **Connect Google Health**.
 
-Because the project stays in Testing mode, Google expires the sign-in every 7 days. Settings shows a Reconnect button.
-Publishing the project would need Google's verification and a security audit, which isn't worth it for one user.
+7. Google Auth Platform → Audience → **Publish app** → Confirm. In Testing mode Google ends the sign-in every 7 days;
+   published, it lasts. Skip verification: an unverified app still works for up to 100 users, you just see the
+   "Google hasn't verified this app" screen when you sign in. If Google ever ends the sign-in anyway, DOOP opens
+   the renewal itself the next time you open it.
 
 ## 4. Weight, meals, calendar, weather (2 min, optional)
 
