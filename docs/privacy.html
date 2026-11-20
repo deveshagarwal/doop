@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOOP Privacy Policy</title>
+<meta name="description" content="How DOOP handles your health data: it stays on your iPhone.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="mark" href="./" style="text-decoration:none">D</a>
+  <h1>Privacy policy</h1>
+  <p>Last updated November 19, 2026</p>
+  <p class="lede">DOOP keeps your health data on your iPhone. It has no servers, no accounts, no analytics and no ads, and it never sells or shares your data.</p>
+
+  <h2>What DOOP reads</h2>
+  <ul>
+    <li><strong>Apple Health</strong>, with your permission: sleep, heart rate, heart rate variability, workouts, steps, active energy, respiratory rate, blood oxygen, body temperature, weight, nutrition and alcoholic drinks.</li>
+    <li><strong>Google Health API</strong>, only if you connect it, read-only: health metrics and measurements (such as heart rate variability), sleep, and activity and fitness data from your Fitbit.</li>
+    <li><strong>Calendar</strong>, only if you allow it, read-only: event times, to notice late meetings and busy days. Event titles are not stored.</li>
+    <li><strong>Approximate location</strong>, only if you allow it, to look up local weather.</li>
+  </ul>
+
+  <h2>Where it goes</h2>
+  <ul>
+    <li>Everything DOOP reads is stored and analyzed on your iPhone, in the app's private storage. Sign-in tokens are kept in the iOS Keychain.</li>
+    <li>To fetch weather, DOOP sends your location rounded to two decimal places (about 1 km) to <a href="https://open-meteo.com/">Open-Meteo</a>. No other data is sent with it.</li>
+    <li>To fetch Fitbit data, DOOP signs in to Google and requests your data directly from the Google Health API. It goes from Google to your phone and nowhere else.</li>
+    <li>DOOP never writes to Apple Health, your calendar or your Google account.</li>
+    <li>If you tap "Ask Claude", DOOP prepares a text summary and hands it to the iOS share sheet. Nothing is sent unless you choose where to share it.</li>
+  </ul>
+
+  <h2>Google user data</h2>
+  <p>DOOP's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Google data is used only to show you your own recovery, sleep and health trends on your phone. It is not transferred to anyone, not used for advertising, and not read by any person.</p>
+
+  <h2>Deleting your data</h2>
+  <p>Disconnect Google in DOOP's Settings to delete its tokens and Google data. Deleting the app removes everything it stored. You can also revoke access at any time in your Google Account under Security, and in iOS Settings for Health, Calendar and Location.</p>
+
+  <h2>Children</h2>
+  <p>DOOP is not directed at children under 13.</p>
+
+  <h2>Changes and contact</h2>
+  <p>Changes to this policy will be posted on this page. Questions: open an issue at <a href="https://github.com/deveshagarwal/doop/issues">github.com/deveshagarwal/doop/issues</a>.</p>
+
+  <footer><a href="./">DOOP</a> · Not a medical device.</footer>
+</main>
+</body>
+</html>
