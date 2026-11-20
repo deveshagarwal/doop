@@ -60,5 +60,10 @@ SelfTest/    `swift run`: 30 checks on demo data
 Validation/  `python3 prepare.py && swift run -c release && python3 report.py`: real-data check on LifeSnaps
 ```
 
-See [SETUP.md](SETUP.md) to install on your iPhone. Not a medical device. Google Health API layer adapted from
-[Pulse](https://github.com/Luraxx/pulse) (Apache 2.0, see NOTICE).
+See [SETUP.md](SETUP.md) to install on your iPhone. Not a medical device.
+
+## License
+
+[MIT](LICENSE). Portions of `Core/Google/` are adapted from [Pulse](https://github.com/Luraxx/pulse) and remain under
+the Apache License 2.0 (see [NOTICE](NOTICE) and [LICENSE-PULSE](LICENSE-PULSE)). The license covers the code only; it
+grants no rights to WHOOP's, Google's or Apple's trademarks.
