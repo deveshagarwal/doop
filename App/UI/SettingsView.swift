@@ -35,7 +35,7 @@ struct SettingsView: View {
                         Button("Connect Google Health") { Task { await model.connectGoogle(clientID: clientID) } }.disabled(clientID.isEmpty)
                     }
                 } header: { Text("HRV via Google Health (optional)") } footer: {
-                    Text("Apple Health doesn't receive HRV from Fitbit, and HRV is the biggest input to recovery. One-time setup is in SETUP.md. Google expires personal-app sign-ins every 7 days, so you'll tap Reconnect weekly.")
+                    Text("Apple Health doesn't receive HRV from Fitbit, and HRV is the biggest input to recovery. One-time setup is in SETUP.md. Google expires personal-app sign-ins every 7 days; DOOP opens the renewal by itself the next time you open the app, so it's one tap.")
                 }
 
                 Section {

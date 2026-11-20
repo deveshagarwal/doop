@@ -142,8 +142,39 @@ final class AppModel {
                 return
             }
             try await googleAuth.exchange(code: code, pkce: pkce, config: config)
+            googleSignedIn(at: Date())
             await sync()
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    // Google expires personal (Testing-mode) sign-ins after 7 days and only a person can approve a new one,
+    // so DOOP renews it the moment the app is opened: a day early, or as soon as it has lapsed.
+    private static let googleSignedInKey = "googleSignedInAt", googleLapsedKey = "googleLapsed"
+    private var lastAutoReconnect: Date?
+
+    private func googleSignedIn(at date: Date) {
+        UserDefaults.standard.set(date, forKey: Self.googleSignedInKey)
+        UserDefaults.standard.set(false, forKey: Self.googleLapsedKey)
+        Notifier.schedule(id: "google-renew", at: date.addingTimeInterval(6 * 86400 + 12 * 3600),
+                          title: "Renew Google sign-in", body: "It expires tomorrow. Open DOOP and it renews in one tap.")
+    }
+
+    private func googleLapsed() {
+        guard !UserDefaults.standard.bool(forKey: Self.googleLapsedKey) else { return }
+        UserDefaults.standard.set(true, forKey: Self.googleLapsedKey)
+        Notifier.send(id: "google-lapsed", title: "Google sign-in expired",
+                      body: "HRV is paused. Open DOOP and it renews in one tap.")
+    }
+
+    /// Called when the app comes to the foreground. Opens Google's sign-in on its own when the
+    /// sign-in has lapsed or has less than a day left; at most once every 6 hours if dismissed.
+    func renewGoogleIfNeeded() async {
+        guard googleAuth.isConnected, !settings.googleClientID.isEmpty else { return }
+        let signedIn = UserDefaults.standard.object(forKey: Self.googleSignedInKey) as? Date ?? .distantPast
+        let due = UserDefaults.standard.bool(forKey: Self.googleLapsedKey) || Date().timeIntervalSince(signedIn) > 6 * 86400
+        guard due, Date().timeIntervalSince(lastAutoReconnect ?? .distantPast) > 6 * 3600 else { return }
+        lastAutoReconnect = Date()
+        await connectGoogle(clientID: settings.googleClientID)
     }
 
     func disconnectGoogle() {
@@ -180,7 +211,7 @@ final class AppModel {
             snapshot.lastSync["google"] = Date()
             if let n = r.days.values.filter({ $0.hrvRmssd != nil }).compactMap({ DayKey.date(from: $0.date) }).max() { snapshot.newestSample["google"] = n }
             log += r.log
-            if r.log.contains(where: { $0.detail.contains("expired") }) { errorMessage = AuthError.refreshExpired.localizedDescription }
+            if r.log.contains(where: { $0.detail.contains("expired") }) { googleLapsed() }
         }
 
         // Context the app collects itself.

@@ -32,7 +32,12 @@ struct DOOPApp: App {
                 }
         }
         .onChange(of: phase) { _, p in
-            if p == .active, model.hasAppleHealthData { Task { await model.sync() } }
+            if p == .active {
+                Task {
+                    await model.renewGoogleIfNeeded()
+                    if model.hasAppleHealthData { await model.sync() }
+                }
+            }
             if p == .background { Self.scheduleRefresh() }
         }
     }
