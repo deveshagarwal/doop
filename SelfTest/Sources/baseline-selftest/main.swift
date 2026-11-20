@@ -20,6 +20,9 @@ let flat = TrainingLoad.states(Array(repeating: 100, count: 60))
 check(abs((flat.last?.acwr ?? 0) - 1) < 0.01, "steady load → ACWR 1.0", "\(flat.last?.acwr ?? -1)")
 let spike = TrainingLoad.states(Array(repeating: 50, count: 40) + Array(repeating: 150, count: 7))
 check(spike.last?.status == .highRisk, "sudden spike → high risk", "\(spike.last!.status)")
+let stepsOnly = TrainingLoad.states(Array(repeating: 100, count: 40) + Array(repeating: 10, count: 10),
+                                    measured: Array(repeating: false, count: 50))
+check(stepsOnly.last?.status == .building, "no band data → not enough history, not detraining", "\(stepsOnly.last!.status)")
 
 print("End-to-end on 90 demo days")
 let end = "2026-11-19"

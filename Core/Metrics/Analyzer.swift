@@ -111,7 +111,7 @@ public enum Analyzer {
             strains[k] = StrainEngine.compute(day: d, restingHR: rhr, settings: settings)
             workouts[k] = d.workouts
         }
-        let loads = TrainingLoad.states(keys.map { strains[$0]?.trimp ?? 0 })
+        let loads = TrainingLoad.states(keys.map { strains[$0]?.trimp ?? 0 }, measured: keys.map { !(strains[$0]?.estimated ?? true) })
 
         // Habits: detected from data, then your answers on top.
         let calm = StressEnergy.calmHeartRate(days: days, before: today)

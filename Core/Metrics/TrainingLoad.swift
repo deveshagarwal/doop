@@ -21,7 +21,7 @@ public struct LoadState: Codable, Sendable {
 
         public var advice: String {
             switch self {
-            case .building: return "Keep wearing the band. Load ratios need about 3 weeks of data."
+            case .building: return "Needs about 3 weeks of heart-rate data from the band, including the last few days. Steps alone can't tell training from a quiet week."
             case .detraining: return "Your recent load is well below what you're used to. Fitness will slowly drift down."
             case .maintaining: return "Load is steady. Add a harder session if you want to build."
             case .productive: return "You're in the productive range: building load at a sustainable rate."
@@ -35,13 +35,17 @@ public struct LoadState: Codable, Sendable {
 /// Banister fitness-fatigue model (Banister 1975; Busso 2003) with the acute:chronic
 /// workload ratio (Gabbett 2016, Br J Sports Med: 0.8–1.3 "sweet spot", >1.5 danger zone).
 public enum TrainingLoad {
-    /// `series` is daily TRIMP in chronological order, missing days as 0.
-    public static func states(_ series: [Double]) -> [LoadState] {
+    /// `series` is daily TRIMP in chronological order, missing days as 0. `measured` marks days whose load came from
+    /// heart rate rather than a step-count estimate; a status needs 14 measured days in the last 28 and 3 in the last 7,
+    /// so a stretch without the band never reads as detraining.
+    public static func states(_ series: [Double], measured: [Bool]? = nil) -> [LoadState] {
+        let measured = measured ?? Array(repeating: true, count: series.count)
         let acute = Stats.ewma(series, days: 7)
         let chronic = Stats.ewma(series, days: 42)
         return series.indices.map { i in
             var acwr: Double?
-            if i >= 20 {
+            let enough = measured[max(0, i - 27)...i].filter { $0 }.count >= 14 && measured[max(0, i - 6)...i].filter { $0 }.count >= 3
+            if i >= 20, enough {
                 let last7 = Stats.mean(Array(series[max(0, i - 6)...i]))
                 let last28 = Stats.mean(Array(series[max(0, i - 27)...i]))
                 acwr = last28 > 1 ? last7 / last28 : nil
