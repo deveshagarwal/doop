@@ -60,14 +60,12 @@ struct Home: View {
                 }
                 .padding(.top, 4)
                 Spacer(minLength: 0)
-                if day.recovery == nil {
-                    GettingStarted()
-                } else {
+                if day.recovery != nil {
                     if let q = model.analysis.question { QuestionCard(question: q).padding(.bottom, 14) }
                     Text(verdict).font(.system(size: 14.5)).foregroundStyle(Ember.bone2).multilineTextAlignment(.center)
-                    heroes.padding(.top, 18)
-                    if let s = model.analysis.suggestions.first { topSuggestion(s).padding(.top, 16) }
                 }
+                heroes.padding(.top, 18)
+                if day.recovery != nil, let s = model.analysis.suggestions.first { topSuggestion(s).padding(.top, 16) }
 
             }
             .padding(.horizontal, 20)
@@ -95,13 +93,13 @@ struct Home: View {
 
     private var heroes: some View {
         HStack(spacing: 0) {
-            HeroNumber(page: .recovery, label: "Recovery", value: Double(day.recovery?.score ?? 0), decimals: 0, unit: "%",
-                       note: Ember.zoneWord(day.recovery?.zone))
+            HeroNumber(page: .recovery, label: "Recovery", value: day.recovery.map { Double($0.score) }, decimals: 0, unit: "%",
+                       note: day.recovery.map { Ember.zoneWord($0.zone) } ?? "after tonight")
             divider
             HeroNumber(page: .strain, label: "Strain", value: day.strain.strain, decimals: 1, unit: nil,
                        note: day.strainTarget.map { String(format: "of %.1f", $0) } ?? "–")
             divider
-            HeroNumber(page: .sleep, label: "Sleep", value: day.sleep?.performance ?? 0, decimals: 0, unit: "%",
+            HeroNumber(page: .sleep, label: "Sleep", value: day.sleep?.performance, decimals: 0, unit: "%",
                        note: day.sleep.map { Fmt.hm($0.asleepMinutes) } ?? "no data")
         }
     }
@@ -126,7 +124,7 @@ struct Home: View {
 struct HeroNumber: View {
     let page: TodayPage
     let label: String
-    let value: Double
+    let value: Double?
     let decimals: Int
     let unit: String?
     let note: String
@@ -136,8 +134,12 @@ struct HeroNumber: View {
             VStack(spacing: 3) {
                 Label9(label)
                 HStack(alignment: .firstTextBaseline, spacing: 1) {
-                    CountUp(value: value, decimals: decimals, font: .ultra(44))
-                    if let unit { Text(unit).font(.light(14)).foregroundStyle(Ember.bone3) }
+                    if let value {
+                        CountUp(value: value, decimals: decimals, font: .ultra(44))
+                    } else {
+                        Text("–").font(.ultra(44)).foregroundStyle(Ember.bone3)
+                    }
+                    if let unit, value != nil { Text(unit).font(.light(14)).foregroundStyle(Ember.bone3) }
                 }
                 Text(note + " ›").font(.mono(10, .semibold)).foregroundStyle(Ember.ember)
             }
@@ -145,7 +147,7 @@ struct HeroNumber: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(label) \(String(format: "%.\(decimals)f", value))\(unit ?? ""), \(note). Opens details.")
+        .accessibilityLabel("\(label) \(value.map { String(format: "%.\(decimals)f", $0) + (unit ?? "") } ?? "not yet"), \(note). Opens details.")
     }
 }
 
@@ -437,106 +439,6 @@ struct ForYouPage: View {
             }
         }
         .onAppear { shown = true }
-    }
-}
-
-// MARK: Getting started (before there's enough data to score)
-
-struct GettingStarted: View {
-    @Environment(AppModel.self) private var model
-    @State private var showSettings = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            steps
-            Label9("While you wait").padding(.top, 4)
-            waitActions
-        }
-        .padding(16)
-        .glassEffect(.regular, in: .rect(cornerRadius: 24))
-        .sheet(isPresented: $showSettings) { SettingsView() }
-    }
-
-    private var nights: Int {
-        model.analysis.orderedKeys.suffix(30).filter { (model.record($0)?.totalSleepMinutes ?? 0) > 120 }.count
-    }
-
-    private var heartRateToday: Bool {
-        guard let key = model.analysis.latestKey, let r = model.record(key) else { return false }
-        return !r.hrSamples.isEmpty
-    }
-
-    private var header: some View {
-        HStack {
-            InfoLabel(text: "Getting started", accent: true,
-                      info: "Each step ticks itself off as data arrives. Recovery needs a few nights of sleep with the band to learn your normal; until then there's nothing honest to score.")
-            Spacer()
-            Label9("\(min(nights, 5)) of 5 nights")
-        }
-    }
-
-    @ViewBuilder private var steps: some View {
-        let n = nights
-        let hr = heartRateToday
-        let weatherOn = model.weather.status == .authorizedWhenInUse
-        VStack(spacing: 0) {
-            Step(done: model.hasAppleHealthData, title: "Apple Health connected", detail: "Reading on this phone",
-                 actionTitle: "Connect") { Task { await model.connectAppleHealth() } }
-            Step(done: hr, title: "Fitbit data arriving",
-                 detail: hr ? "Heart rate is coming through" : "Wear the band, then in Google Health: Connections → Apps and services → Apple Health")
-            Step(done: n >= 1, title: "First night with the band",
-                 detail: n >= 1 ? "Sleep recorded" : "Wear it snug overnight; open Google Health in the morning")
-            Step(done: n >= 5, title: "Recovery calibrated",
-                 detail: n >= 5 ? "Scoring against your normal" : "\(max(0, 5 - n)) more nights to learn your normal")
-            Step(done: model.calendarConnected, title: "Calendar (optional)", detail: "Spots late meetings automatically",
-                 actionTitle: "Connect") { Task { await model.connectCalendar() } }
-            Step(done: weatherOn, title: "Weather (optional)", detail: "Spots hot nights automatically",
-                 actionTitle: "Allow") { model.connectWeather() }
-            Step(done: model.isGoogleConnected, title: "HRV via Google (optional)", detail: "The biggest input to recovery",
-                 actionTitle: "Set up") { showSettings = true }
-        }
-    }
-
-    private var waitActions: some View {
-        HStack(spacing: 8) {
-            ChipButton(title: "Breathe") { model.selectedTab = .body }
-            NavigationLink(value: TodayPage.glossary) {
-                Text("What everything means").font(.system(size: 12, weight: .medium)).foregroundStyle(Ember.bone)
-                    .padding(.horizontal, 14).padding(.vertical, 7)
-                    .background(Ember.glass, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            ChipButton(title: "Demo") { model.updateSettings { $0.demoMode = true } }
-        }
-    }
-}
-
-struct Step: View {
-    let done: Bool
-    let title: String
-    let detail: String
-    var actionTitle: String? = nil
-    var action: () -> Void = {}
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 15))
-                .foregroundStyle(done ? Ember.ember : Ember.bone3)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(done ? Ember.bone2 : Ember.bone)
-                Text(detail).font(.system(size: 11)).foregroundStyle(Ember.bone3).fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 6)
-            if !done, let actionTitle {
-                Button(actionTitle, action: action)
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(Ember.ember)
-                    .buttonStyle(.plain)
-            }
-        }
-        .padding(.vertical, 6)
     }
 }
 
