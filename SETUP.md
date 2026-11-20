@@ -2,9 +2,11 @@
 
 ## 1. Put it on your iPhone (10 min)
 
-1. `open DOOP.xcodeproj`
-2. Target **DOOP** → *Signing & Capabilities* → choose your Team (a free Apple ID works).
-   If the bundle ID `com.dagarwal.doop` is taken, change it in `project.yml` and run `xcodegen generate`.
+1. Bundle IDs are unique per Apple account and `com.dagarwal.doop` is already taken, so swap in your own prefix
+   (app, widget, App Group and background task IDs all change together):
+   `grep -rl com.dagarwal --exclude-dir=.git . | xargs sed -i '' 's/com\.dagarwal/com.yourname/g'`
+2. `open DOOP.xcodeproj`, then for both the **DOOP** and **DOOPWidget** targets → *Signing & Capabilities* →
+   choose your Team (a free Apple ID works; the install then lasts 7 days before you rebuild).
 3. Plug in your iPhone, select it as the run destination, press ▶︎.
    First run: on the phone, Settings → General → VPN & Device Management → trust your developer certificate.
 
