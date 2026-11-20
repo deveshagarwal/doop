@@ -61,6 +61,13 @@ struct SettingsView: View {
                         TextField("\(Int(model.settings.maxHR)) (estimated)", text: $maxHR).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                             .onSubmit { model.updateSettings { $0.maxHROverride = Double(maxHR) } }
                     }
+                    Picker("Height", selection: Binding(get: { model.settings.heightCm.map { ($0 / 2.54 * 2).rounded() / 2 } ?? 0 },
+                                                        set: { v in model.updateSettings { $0.heightCm = v == 0 ? nil : v * 2.54 } })) {
+                        Text("Not set").tag(0.0)
+                        ForEach(Array(stride(from: 54.0, through: 84.0, by: 0.5)), id: \.self) { inches in
+                            Text("\(Int(inches) / 12)′ \(String(format: "%g", inches.truncatingRemainder(dividingBy: 12)))″").tag(inches)
+                        }
+                    }
                     Picker("Weight goal", selection: Binding(get: { model.settings.goalRateKgPerWeek ?? 0 }, set: { v in model.updateSettings { $0.goalRateKgPerWeek = v == 0 ? nil : v } })) {
                         ForEach([-1.0, -0.75, -0.5, -0.25, 0, 0.25], id: \.self) { r in
                             Text(r == 0 ? "No target" : String(format: "%+.2g kg/week", r)).tag(r)
