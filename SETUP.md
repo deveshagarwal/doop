@@ -38,7 +38,8 @@ Publishing the project would need Google's verification and a security audit, wh
 ## 4. Weight, meals, calendar, weather (2 min, optional)
 
 - **Omada:** in the Omada app, Settings → Health Integration → Share with Health App, turn on weight.
-- **Nourish:** check its Health settings allow *writing* nutrition (energy, protein, caffeine). If it only reads, meals won't appear.
+- **Meals (optional):** any food logger that writes nutrition to Apple Health (Cronometer, MacroFactor, Lose It!, MyFitnessPal).
+  Nourish only reads from Health, so its meals never arrive. Food screens stay hidden until nutrition data shows up.
 - **Calendar and weather:** DOOP → Settings → Connect Calendar / Allow approximate location.
 
 ## 5. Widgets

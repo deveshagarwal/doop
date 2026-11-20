@@ -26,16 +26,16 @@ public struct JournalFactor: Codable, Hashable, Sendable, Identifiable {
     /// alcohol is suspected from overnight heart rate and confirmed with one yes/no.
     public static let all: [JournalFactor] = [
         .init(id: "alcohol", label: "Alcohol", symbol: "wineglass", source: "Overnight heart rate · you confirm"),
-        .init(id: "late_meal", label: "Late meal", symbol: "fork.knife", source: "Nourish"),
-        .init(id: "late_caffeine", label: "Caffeine after 2pm", symbol: "cup.and.saucer", source: "Nourish"),
+        .init(id: "late_meal", label: "Late meal", symbol: "fork.knife", source: "Food log"),
+        .init(id: "late_caffeine", label: "Caffeine after 2pm", symbol: "cup.and.saucer", source: "Food log"),
         .init(id: "late_workout", label: "Late workout", symbol: "figure.run", source: "Fitbit"),
         .init(id: "late_meeting", label: "Meeting past 7pm", symbol: "calendar", source: "Calendar"),
         .init(id: "packed_day", label: "Packed calendar", symbol: "calendar.badge.clock", source: "Calendar"),
         .init(id: "hot_night", label: "Hot night", symbol: "thermometer.sun", source: "Weather"),
         .init(id: "travel", label: "Travel", symbol: "airplane", source: "Time zone"),
         .init(id: "mindful", label: "Mindful minutes", symbol: "brain.head.profile", source: "Apple Health"),
-        .init(id: "high_protein", label: "140g+ protein", symbol: "fish", source: "Nourish"),
-        .init(id: "big_dinner", label: "Big dinner", symbol: "takeoutbag.and.cup.and.straw", source: "Nourish"),
+        .init(id: "high_protein", label: "140g+ protein", symbol: "fish", source: "Food log"),
+        .init(id: "big_dinner", label: "Big dinner", symbol: "takeoutbag.and.cup.and.straw", source: "Food log"),
         .init(id: "high_stress", label: "Stressful day", symbol: "waveform.path.ecg", source: "Heart rate vs movement"),
     ]
 

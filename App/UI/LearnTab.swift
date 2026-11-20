@@ -84,7 +84,7 @@ struct DayLog: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 InfoLabel(text: "Day log · automatic", accent: true,
-                          info: "Nothing to fill in. Each line comes from data you already create: meals and coffee from Nourish, weight from Omada, workouts and overnight heart rate from your band, meetings from Calendar, weather for your area, time zone changes for travel, mindful minutes from Apple Health. Long-press a line to correct it.")
+                          info: "Nothing to fill in. Each line comes from data you already create: meals and coffee from any food app that writes to Apple Health, weight from Omada, workouts and overnight heart rate from your band, meetings from Calendar, weather for your area, time zone changes for travel, mindful minutes from Apple Health. Long-press a line to correct it.")
                 Spacer()
                 Button { offset += 1 } label: { Image(systemName: "chevron.left") }.accessibilityLabel("Previous day")
                 Text(Fmt.dayTitle(key)).font(.mono(10.5, .semibold)).frame(minWidth: 70)

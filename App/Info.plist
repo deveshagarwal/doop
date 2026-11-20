@@ -29,7 +29,7 @@
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>DOOP notices late meetings and packed days so it can see how they affect your sleep and recovery. Nothing leaves your phone.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>DOOP reads the sleep, heart rate, workouts and vitals your Fitbit shares through Google Health, plus weight from Omada and meals from Nourish, to score your recovery on this phone.</string>
+	<string>DOOP reads the sleep, heart rate, workouts and vitals your Fitbit shares through Google Health, plus weight from Omada and meals from your food app, to score your recovery on this phone.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>DOOP does not write to Apple Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

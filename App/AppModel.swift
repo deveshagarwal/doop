@@ -43,6 +43,8 @@ final class AppModel {
     var today: DayScore? { analysis.latest }
     var isGoogleConnected: Bool { googleAuth.isConnected }
     var hasAppleHealthData: Bool { !snapshot.days.isEmpty }
+    /// True once any food app has written nutrition to Apple Health; food UI stays hidden until then.
+    var hasMealData: Bool { snapshot.newestSample["meals"] != nil }
     var hasAnyData: Bool { !days.isEmpty }
     var calendarConnected: Bool { calendar.isAuthorized }
     var isDemo: Bool { demo != nil }

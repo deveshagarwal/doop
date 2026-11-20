@@ -9,7 +9,7 @@ no logging. Recovery, strain, sleep, training load, illness watch, energy and st
 ```
 Fitbit Air → Google Health app → Apple Health → DOOP   sleep, heart rate, workouts, vitals, steps
 Omada scale → Apple Health → DOOP                       weight
-Nourish → Apple Health → DOOP                           meals, protein, caffeine, drinks
+Food app → Apple Health → DOOP (optional)                meals, protein, caffeine, drinks
 Calendar (read-only) · weather (Open-Meteo) · time zone     late meetings, hot nights, travel
 Google Health API (optional)                                HRV, which Apple Health doesn't receive
 ```

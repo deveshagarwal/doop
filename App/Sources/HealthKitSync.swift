@@ -12,7 +12,7 @@ final class HealthKitSync: @unchecked Sendable {
     private let quantityTypes: [HKQuantityTypeIdentifier] = [
         .heartRate, .restingHeartRate, .heartRateVariabilitySDNN, .respiratoryRate, .oxygenSaturation,
         .appleSleepingWristTemperature, .bodyTemperature, .vo2Max, .stepCount, .activeEnergyBurned,
-        // Written by other apps: Omada (weight), Nourish (meals, caffeine, alcohol).
+        // Written by other apps: Omada (weight), any food logger (meals, caffeine, alcohol).
         .bodyMass, .dietaryEnergyConsumed, .dietaryProtein, .dietaryCaffeine, .numberOfAlcoholicBeverages,
     ]
 
@@ -143,7 +143,7 @@ final class HealthKitSync: @unchecked Sendable {
             note("Sleep", "\(sessions.count) sessions")
         } catch { note("Sleep", error.localizedDescription, true) }
 
-        // Weight (Omada) and meals (Nourish), via Apple Health.
+        // Weight (Omada) and meals (food logger), via Apple Health.
         do {
             let w = try await quantitySamples(.bodyMass, unit: .gramUnit(with: .kilo), start: start, end: end)
             for (t, v) in w { update(DayKey.string(from: t)) { $0.weightKg = v } }
@@ -154,7 +154,7 @@ final class HealthKitSync: @unchecked Sendable {
             var byDay: [String: [Meal]] = [:]
             for m in meals { byDay[DayKey.string(from: m.time), default: []].append(m) }
             for (k, list) in byDay { update(k) { $0.meals = list } }
-            note("Meals", meals.isEmpty ? "none · Nourish may not write nutrition to Health" : "\(meals.count) entries")
+            note("Meals", meals.isEmpty ? "none · no food app is writing nutrition to Health" : "\(meals.count) entries")
         } catch { note("Meals", error.localizedDescription, true) }
         do {
             let raw: [HKCategorySample] = try await samples(HKCategoryType(.mindfulSession), start: start, end: end)

@@ -64,7 +64,8 @@ struct EnergyPage: View {
                 BodyLink(page: .health, title: "Health monitor", detail: model.today.map { "Illness watch: \($0.illness.level.title.lowercased())" } ?? "")
                 BodyLink(page: .healthspan, title: "Healthspan",
                          detail: model.analysis.healthspan.map { String(format: "Body age %.1f · pace %@", $0.bodyAge, $0.pace.map { String(format: "%.2f×", $0) } ?? "after 4 months") } ?? "Needs two weeks of data")
-                BodyLink(page: .weight, title: "Weight & food", detail: "From Omada and Nourish via Apple Health")
+                BodyLink(page: .weight, title: model.hasMealData ? "Weight & food" : "Weight",
+                         detail: model.hasMealData ? "Omada and your food app via Apple Health" : "From Omada via Apple Health")
             }
         }
         .modifier(DrawIn(progress: $progress))
@@ -319,15 +320,17 @@ struct WeightFoodPage: View {
                     Text("No weigh-ins yet. In the Omada app: Settings → Health Integration → Share with Health App, and turn on weight.").font(.system(size: 13))
                 }
             }
-            Section9(title: "Today · Nourish", info: "Meals that Nourish writes to Apple Health. If nothing shows, check whether Nourish's Health settings allow writing nutrition.") {
-                if let t = today, t.kcalTotal != nil {
-                    VStack(spacing: 0) {
-                        MetricRow(name: "Calories", value: "\(Int(t.kcalTotal ?? 0))", fraction: (t.kcalTotal ?? 0) / 2400, accent: true)
-                        MetricRow(name: "Protein", value: "\(Int(t.proteinTotal ?? 0)) g", fraction: (t.proteinTotal ?? 0) / 150)
-                        MetricRow(name: "Meals logged", value: "\((t.meals ?? []).filter { ($0.kcal ?? 0) > 0 }.count)")
+            if model.hasMealData {
+                Section9(title: "Today · Food", info: "Meals your food app writes to Apple Health, grouped when entries are within 20 minutes of each other.") {
+                    if let t = today, t.kcalTotal != nil {
+                        VStack(spacing: 0) {
+                            MetricRow(name: "Calories", value: "\(Int(t.kcalTotal ?? 0))", fraction: (t.kcalTotal ?? 0) / 2400, accent: true)
+                            MetricRow(name: "Protein", value: "\(Int(t.proteinTotal ?? 0)) g", fraction: (t.proteinTotal ?? 0) / 150)
+                            MetricRow(name: "Meals logged", value: "\((t.meals ?? []).filter { ($0.kcal ?? 0) > 0 }.count)")
+                        }
+                    } else {
+                        Text("No meals logged today.").font(.system(size: 13)).foregroundStyle(Ember.bone2)
                     }
-                } else {
-                    Text("No meals logged today.").font(.system(size: 13)).foregroundStyle(Ember.bone2)
                 }
             }
             let food = model.analysis.effects.filter { ["high_protein", "big_dinner", "late_meal", "late_caffeine"].contains($0.factor.id) && $0.outcome == .recovery }

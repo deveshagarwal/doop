@@ -13,14 +13,14 @@ struct SettingsView: View {
                     source("Apple Health", model.hasAppleHealthData, detail: "newest " + Fmt.relative(model.snapshot.newestSample["appleHealth"]))
                     if !model.hasAppleHealthData { Button("Connect Apple Health") { Task { await model.connectAppleHealth() } } }
                     source("Omada weight", model.snapshot.newestSample["weight"] != nil, detail: model.snapshot.newestSample["weight"].map { "last " + Fmt.relative($0) } ?? "via Apple Health")
-                    source("Nourish meals", model.snapshot.newestSample["meals"] != nil, detail: model.snapshot.newestSample["meals"].map { "last " + Fmt.relative($0) } ?? "via Apple Health")
+                    source("Meals", model.hasMealData, detail: model.snapshot.newestSample["meals"].map { "last " + Fmt.relative($0) } ?? "optional · any food app that writes to Apple Health")
                     source("Calendar", model.calendarConnected, detail: model.calendarConnected ? "late meetings, busy days" : "")
                     if !model.calendarConnected { Button("Connect Calendar") { Task { await model.connectCalendar() } } }
                     source("Weather", model.weather.status == .authorizedWhenInUse, detail: "hot nights · approximate location")
                     if model.weather.status != .authorizedWhenInUse { Button("Allow approximate location") { model.connectWeather() } }
                     Button(model.syncing ? "Syncing…" : "Sync now") { Task { await model.sync() } }.disabled(model.syncing)
                 } header: { Text("Sources") } footer: {
-                    Text("Everything is read-only and stays on this phone. Omada and Nourish arrive through Apple Health: in Omada, Settings → Health Integration → Share with Health App. In Google Health: Connections → Apps and services → Apple Health.")
+                    Text("Everything is read-only and stays on this phone. Omada and food apps arrive through Apple Health: in Omada, Settings → Health Integration → Share with Health App. In Google Health: Connections → Apps and services → Apple Health.")
                 }
 
                 Section {

@@ -238,7 +238,7 @@ public struct DayRecord: Codable, Sendable {
     /// Time zone the phone was in that day, for travel and jet-lag detection.
     public var timeZoneID: String?
     public var weather: DayWeather?
-    /// Meals and drinks other apps (Nourish) write to Apple Health.
+    /// Meals and drinks food apps write to Apple Health.
     public var meals: [Meal]?
     /// Weigh-ins other apps (Omada) write to Apple Health, kg.
     public var weightKg: Double?

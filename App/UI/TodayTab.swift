@@ -383,7 +383,7 @@ struct TonightPlanner: View {
                         .sensoryFeedback(.selection, trigger: Int(bedtime * 12))
                 }
                 Section9(title: "Tonight I'll", info: "Each habit's effect is learned from your own history. Only habits that happened at least 5 times change the forecast.") {
-                    FlowChips(items: toggles, isOn: { id in (model.today?.factors.contains(id) ?? false || extra.contains(id)) && !removed.contains(id) }) { id in
+                    FlowChips(items: toggles.filter { model.hasMealData || !["late_meal", "late_caffeine"].contains($0.0) }, isOn: { id in (model.today?.factors.contains(id) ?? false || extra.contains(id)) && !removed.contains(id) }) { id in
                         let on = (model.today?.factors.contains(id) ?? false || extra.contains(id)) && !removed.contains(id)
                         if on { extra.remove(id); removed.insert(id) } else { removed.remove(id); extra.insert(id) }
                     }

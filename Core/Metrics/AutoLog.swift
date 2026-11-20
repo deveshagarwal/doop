@@ -105,17 +105,17 @@ public enum AutoLog {
         for m in day.meals ?? [] {
             let h = hour(m.time)
             if let c = m.caffeineMg, c >= 40 {
-                out.append(LogEvent(time: m.time, title: "Coffee · \(Int(c)) mg caffeine", source: "Nourish",
+                out.append(LogEvent(time: m.time, title: "Coffee · \(Int(c)) mg caffeine", source: "Food log",
                                     factor: h >= 14 ? "late_caffeine" : nil))
             }
             if let k = m.kcal, k >= 150 {
                 let name = h < 11 ? "Breakfast" : h < 16 ? "Lunch" : "Dinner"
                 let late = factors.contains("late_meal") && h >= 19
                 out.append(LogEvent(time: m.time, title: "\(name) · \(Int(k)) kcal" + (m.proteinG.map { " · \(Int($0))g protein" } ?? ""),
-                                    source: late ? "Nourish · late meal" : "Nourish", factor: late ? "late_meal" : nil))
+                                    source: late ? "Food log · late meal" : "Food log", factor: late ? "late_meal" : nil))
             }
             if let a = m.alcoholG, a > 0 {
-                out.append(LogEvent(time: m.time, title: "Drink logged", source: "Nourish", factor: "alcohol"))
+                out.append(LogEvent(time: m.time, title: "Drink logged", source: "Food log", factor: "alcohol"))
             }
         }
         for w in day.workouts {
