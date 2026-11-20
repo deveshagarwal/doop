@@ -1,5 +1,11 @@
 # DOOP
 
+> **Unofficial parody. Not affiliated with WHOOP.** DOOP is an independent, non-commercial, open-source personal
+> project. It is not affiliated with, endorsed by, sponsored by or connected to WHOOP, Inc. The name is a parody;
+> it shares no code, designs, data or assets with WHOOP. WHOOP is a trademark of WHOOP, Inc. Google, Fitbit and
+> Google Health are trademarks of Google LLC, and Apple Health is a trademark of Apple Inc.; DOOP is not affiliated
+> with or endorsed by any of them.
+
 A dupe on WHOOP: a personal recovery app for the Google Fitbit Air, in the spirit of WHOOP, Bevel and Athlytic, built to need
 no logging. Recovery, strain, sleep, training load, illness watch, energy and stress, healthspan, and a
 "For you" feed from on-device models. Everything is scored against your own baselines and stays on the phone.

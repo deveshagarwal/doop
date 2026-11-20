@@ -7,6 +7,8 @@ main { max-width:640px; margin:0 auto; padding:56px 16px 80px; }
 h1 { font-size:40px; letter-spacing:-0.02em; margin:0 0 8px; font-weight:700; }
 h2 { font-size:13px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ember); margin:40px 0 8px; font-weight:600; }
 p, li { color:var(--bone2); }
+.note { display:inline-block; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--bone2);
+        border:1px solid var(--hair); border-radius:999px; padding:4px 12px; margin:4px 0 12px; }
 .lede { font-size:19px; color:var(--bone); }
 ul { padding-left:20px; }
 a { color:var(--ember); }

@@ -87,7 +87,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Text("Not a medical device. Scores are estimates from published methods, scored against your own baselines. Google Health API code adapted from Pulse (Apache 2.0).").font(.caption).foregroundStyle(.secondary)
+                    Text("Unofficial parody, not affiliated with or endorsed by WHOOP, Inc., Google, Fitbit or Apple. Not a medical device. Scores are estimates from published methods, scored against your own baselines. Google Health API code adapted from Pulse (Apache 2.0).").font(.caption).foregroundStyle(.secondary)
                 }
             }
             .scrollContentBackground(.hidden)
