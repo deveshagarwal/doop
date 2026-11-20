@@ -63,6 +63,8 @@ struct Home: View {
                 }
                 .padding(.top, 4)
                 Spacer(minLength: 0)
+                HomeHeadline(bpm: model.record(day.date)?.restingHR)
+                    .padding(.bottom, 22)
                 if day.recovery != nil {
                     if let q = model.analysis.question { QuestionCard(question: q).padding(.bottom, 14) }
                     Text(verdict).font(.system(size: 14.5)).foregroundStyle(Ember.bone2).multilineTextAlignment(.center)
@@ -107,6 +109,58 @@ struct Home: View {
     }
 
     private var divider: some View { Rectangle().fill(Ember.hair).frame(width: 1, height: 70) }
+}
+
+/// Big numbers under the sphere, swiped through sideways: resting HR, calories left, weight change.
+struct HomeHeadline: View {
+    @Environment(AppModel.self) private var model
+    let bpm: Double?
+    @AppStorage("homeHeadline") private var page = 0
+
+    var body: some View {
+        VStack(spacing: 10) {
+            TabView(selection: $page) {
+                slide(bpm.map { "\(Int($0))" } ?? "–", "bpm", bpm == nil ? "RESTING HR · AFTER A NIGHT WITH THE BAND" : "RESTING · THE SPHERE BEATS AT IT").tag(0)
+                slide(kcalLeft.map { "\(Int($0.rounded()).formatted())" } ?? "–", "kcal",
+                      (kcalLeft ?? 0) < 0 ? "OVER TODAY'S TARGET" : "LEFT TO EAT TODAY").tag(1)
+                slide(weightChange.map { String(format: "%+.1f", $0) } ?? "–", "kg", "SINCE YOUR FIRST WEIGH-IN").tag(2)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 128)
+            .sensoryFeedback(.selection, trigger: page)
+            HStack(spacing: 6) {
+                ForEach(0..<3, id: \.self) { i in
+                    Capsule().fill(i == page ? Ember.ember : Ember.bone3).frame(width: i == page ? 14 : 5, height: 5)
+                }
+            }
+            .animation(.snappy, value: page)
+            .accessibilityHidden(true)
+        }
+    }
+
+    private var kcalLeft: Double? {
+        let eaten = model.meals(on: DayKey.today()).reduce(0) { $0 + $1.totals.kcal }
+        return model.budget.flatMap { $0.targetKcal ?? $0.burnKcal }.map { $0 - eaten }
+    }
+
+    private var weightChange: Double? {
+        let first = model.analysis.orderedKeys.lazy.compactMap { model.record($0)?.weightKg }.first
+        guard let first, let now = model.budget?.trendWeightKg else { return nil }
+        return now - first
+    }
+
+    private func slide(_ value: String, _ unit: String, _ label: String) -> some View {
+        VStack(spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(value).font(.ultra(96)).monospacedDigit().tracking(-3).minimumScaleFactor(0.6).lineLimit(1)
+                Text(unit).font(.light(20)).foregroundStyle(Ember.bone3)
+            }
+            Text(label).font(.mono(10, .semibold)).tracking(1.5).foregroundStyle(Ember.ember)
+        }
+        .foregroundStyle(Ember.bone)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
 }
 
 struct HeroNumber: View {
