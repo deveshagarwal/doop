@@ -174,6 +174,14 @@ public struct Healthspan: Sendable {
             let y = steps < 5000 ? 2.0 : steps < 7500 ? 0.5 : steps < 10000 ? -0.5 : -1.0
             parts.append((String(format: "Steps %.1fk", steps / 1000), y))
         }
+        // Gait speed: among the strongest single predictors of survival (Studenski et al. 2011, JAMA).
+        // iPhone everyday walking speed runs below lab gait speed, so the bands are set for it. Heuristic.
+        let speeds = days.compactMap(\.walkingSpeed)
+        if speeds.count >= 7 {
+            let s = Stats.percentile(speeds, 0.5) ?? 0
+            let y = s >= 1.4 ? -1.0 : s >= 1.25 ? -0.5 : s >= 1.1 ? 0.0 : s >= 0.95 ? 0.7 : 1.5
+            parts.append((String(format: "Walking speed %.1f km/h", s * 3.6), y))
+        }
         let hours = days.map { $0.totalSleepMinutes / 60 }.filter { $0 > 3 }
         if !hours.isEmpty {
             let h = Stats.mean(hours)

@@ -140,6 +140,30 @@ check(abs((budget.targetKcal ?? 0) - (budget.burnKcal - 825)) < 1, "target = bur
 var noFood = bdays; for k in noFood.keys { noFood[k]?.meals = nil }
 check(EnergyBudget.compute(days: noFood, settings: bs, today: bend)?.basis == .estimated, "no logging → formula estimate")
 
+print("Body signals")
+var gdays: [String: DayRecord] = [:]
+let gend = "2026-12-31"
+for i in 0..<40 {
+    let k = DayKey.addDays(gend, -i)
+    var d = DayRecord(date: k)
+    d.walkingAsymmetryPct = i < 3 ? 9 : 2 + Double(i % 3) * 0.3    // jumps for the last three days
+    d.doubleSupportPct = 27
+    d.walkingSpeed = 1.35
+    d.extras = ["HKQuantityTypeIdentifierDistanceWalkingRunning": Double(i % 10)]
+    gdays[k] = d
+}
+let gkeys = DayKey.keys(from: DayKey.addDays(gend, -39), to: gend)
+let alert = GaitWatch.check(days: gdays, keys: gkeys)
+check(alert?.metric == "Walking asymmetry", "3-day asymmetry jump → gait alert", "\(String(describing: alert))")
+var calm = gdays; calm[gend]?.walkingAsymmetryPct = 2
+check(GaitWatch.check(days: calm, keys: gkeys) == nil, "two odd days → no alert")
+let th = ExtraHabits.thresholds(days: gdays)
+check(th["HKQuantityTypeIdentifierDistanceWalkingRunning"] != nil, "walking distance becomes a habit after 2 weeks")
+check(ExtraHabits.detect(gdays[DayKey.addDays(gend, -9)]!, thresholds: th).contains("x:HKQuantityTypeIdentifierDistanceWalkingRunning"), "long walking day detected")
+check(JournalFactor.named("x:HKQuantityTypeIdentifierDistanceWalkingRunning")?.label == "Long walking day", "habit has a readable name")
+let hs = Healthspan.compute(days: demo.days.mapValues { var d = $0; d.walkingSpeed = 1.45; return d }, keys: a.orderedKeys, settings: settings)
+check(hs?.contributors.contains { $0.name.hasPrefix("Walking speed") && $0.years < 0 } == true, "brisk walking lowers body age")
+
 print("Store roundtrip")
 let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 let store = Store(directory: dir)

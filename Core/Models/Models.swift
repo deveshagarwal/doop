@@ -262,6 +262,13 @@ public struct DayRecord: Codable, Sendable {
     /// Every other Apple Health type, one daily value each (sum for totals like water, average for readings like
     /// blood pressure), keyed by HealthKit identifier. Units are in `StoreSnapshot.extraUnits`.
     public var extras: [String: Double]?
+    /// iPhone gait metrics in fixed units (m/s, percent), for the engines.
+    public var walkingSpeed: Double?
+    public var walkingAsymmetryPct: Double?
+    public var doubleSupportPct: Double?
+    /// Body composition from a smart scale, if it writes it.
+    public var bodyFatPct: Double?
+    public var leanMassKg: Double?
 
     public init(date: String) { self.date = date }
 
@@ -296,6 +303,11 @@ public struct DayRecord: Codable, Sendable {
         lastEventEnd = lastEventEnd ?? other.lastEventEnd
         eventHours = eventHours ?? other.eventHours
         if let o = other.extras { extras = (extras ?? [:]).merging(o) { mine, _ in mine } }
+        walkingSpeed = walkingSpeed ?? other.walkingSpeed
+        walkingAsymmetryPct = walkingAsymmetryPct ?? other.walkingAsymmetryPct
+        doubleSupportPct = doubleSupportPct ?? other.doubleSupportPct
+        bodyFatPct = bodyFatPct ?? other.bodyFatPct
+        leanMassKg = leanMassKg ?? other.leanMassKg
     }
 }
 

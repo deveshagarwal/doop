@@ -151,6 +151,11 @@ final class HealthKitSync: @unchecked Sendable {
             ("Steps", .stepCount, .count(), .cumulativeSum, { $0.steps = Int($1) }),
             ("Active energy", .activeEnergyBurned, .kilocalorie(), .cumulativeSum, { $0.activeEnergy = $1 }),
             ("VO₂max", .vo2Max, HKUnit(from: "ml/kg*min"), .discreteAverage, { $0.vo2max = $1 }),
+            ("Walking speed", .walkingSpeed, .meter().unitDivided(by: .second()), .discreteAverage, { $0.walkingSpeed = $1 }),
+            ("Walking asymmetry", .walkingAsymmetryPercentage, .percent(), .discreteAverage, { $0.walkingAsymmetryPct = $1 * 100 }),
+            ("Double support", .walkingDoubleSupportPercentage, .percent(), .discreteAverage, { $0.doubleSupportPct = $1 * 100 }),
+            ("Body fat", .bodyFatPercentage, .percent(), .discreteAverage, { $0.bodyFatPct = $1 * 100 }),
+            ("Lean mass", .leanBodyMass, .gramUnit(with: .kilo), .discreteAverage, { $0.leanMassKg = $1 }),
         ]
         for (label, id, unit, option, apply) in dailies {
             do {

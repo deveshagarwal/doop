@@ -112,12 +112,87 @@ struct HealthMonitorPage: View {
                     ForEach(metrics, id: \.self) { m in VitalRow(metric: m) }
                 }
             }
+            GaitSection()
+            OtherReadings()
         }
     }
 
     private var metrics: [Metric] {
         let hasRMSSD = model.days.values.contains { $0.hrvRmssd != nil }
         return [hasRMSSD ? .hrvRmssd : .hrvSdnn, .restingHR, .respiratoryRate, .skinTemp, .spo2]
+    }
+}
+
+/// How you walk, from the iPhone's own gait measurements, and the injury watch.
+struct GaitSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let keys = Array(model.analysis.orderedKeys.suffix(30))
+        let speed = keys.compactMap { model.record($0)?.walkingSpeed }
+        let asym = keys.compactMap { model.record($0)?.walkingAsymmetryPct }
+        let support = keys.compactMap { model.record($0)?.doubleSupportPct }
+        if !speed.isEmpty || !asym.isEmpty {
+            Section9(title: "Walking", info: "Measured by your iPhone as you carry it. Walking speed is one of the strongest single predictors of long-term health. Asymmetry (one step longer than the other) and time with both feet on the ground tend to rise after a strain or injury, often before it hurts. An alert needs three days in a row above your 30-day normal.") {
+                if let g = model.analysis.gait {
+                    GlassCard {
+                        Label9("Gait changed", accent: true)
+                        Text(String(format: "%@ is %.1f points above your normal for 3 days (%.1f%% vs %.1f%%).", g.metric, g.rise, g.recent, g.baseline))
+                            .font(.system(size: 13))
+                        Text("Often the first sign of a tweak. Consider an easier day and see if it settles.")
+                            .font(.system(size: 11.5)).foregroundStyle(Ember.bone2)
+                    }
+                }
+                VStack(spacing: 0) {
+                    if let s = speed.last { MetricRow(name: "Walking speed", value: String(format: "%.1f km/h", s * 3.6), delta: speed.count > 7 ? Fmt.signed((s - Stats.mean(speed)) * 3.6, 1) : nil) }
+                    if let a = asym.last { MetricRow(name: "Asymmetry", value: String(format: "%.1f%%", a), delta: asym.count > 7 ? Fmt.signed(a - Stats.mean(asym), 1) : nil) }
+                    if let d = support.last { MetricRow(name: "Both feet on the ground", value: String(format: "%.1f%%", d), delta: support.count > 7 ? Fmt.signed(d - Stats.mean(support), 1) : nil) }
+                }
+                Text("Change vs your 30-day average.").font(.system(size: 11)).foregroundStyle(Ember.bone3)
+            }
+        }
+    }
+}
+
+/// Heart alerts and readings from other devices (cuff, glucose monitor, Apple Watch), only when they exist.
+struct OtherReadings: View {
+    @Environment(AppModel.self) private var model
+    static let readings: [(String, String)] = [
+        ("HKQuantityTypeIdentifierBloodPressureSystolic", "Blood pressure (top)"),
+        ("HKQuantityTypeIdentifierBloodPressureDiastolic", "Blood pressure (bottom)"),
+        ("HKQuantityTypeIdentifierBloodGlucose", "Blood glucose"),
+        ("HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances", "Breathing disturbances in sleep"),
+        ("HKQuantityTypeIdentifierWalkingHeartRateAverage", "Walking heart rate"),
+        ("HKQuantityTypeIdentifierHeartRateRecoveryOneMinute", "Heart rate recovery (1 min)"),
+        ("HKQuantityTypeIdentifierAtrialFibrillationBurden", "AFib burden"),
+        ("WHOOP Recovery", "WHOOP Recovery"),
+    ]
+    static let alerts: [(String, String)] = [
+        ("event.HKCategoryTypeIdentifierHighHeartRateEvent", "High heart rate alerts"),
+        ("event.HKCategoryTypeIdentifierLowHeartRateEvent", "Low heart rate alerts"),
+        ("event.HKCategoryTypeIdentifierIrregularHeartRhythmEvent", "Irregular rhythm alerts"),
+        ("event.HKCategoryTypeIdentifierSleepApneaEvent", "Sleep apnea notifications"),
+    ]
+
+    var body: some View {
+        let keys = Array(model.analysis.orderedKeys.suffix(30))
+        let rows: [(String, String, String)] = Self.readings.compactMap { key, name in
+            let v = keys.compactMap { model.record($0)?.extras?[key] }
+            guard let last = v.last else { return nil }
+            return (name, AllHealthDataPage.format(last) + " " + model.unit(forExtra: key), String(format: "30-day avg %@", AllHealthDataPage.format(Stats.mean(v))))
+        }
+        let alerts: [(String, Int)] = Self.alerts.compactMap { key, name in
+            let n = keys.compactMap { model.record($0)?.extras?[key] }.reduce(0, +)
+            return n > 0 ? (name, Int(n)) : nil
+        }
+        if !rows.isEmpty || !alerts.isEmpty {
+            Section9(title: "Other readings", info: "From any device that writes to Apple Health: a blood-pressure cuff, a glucose monitor, Apple Watch, WHOOP. Shown only when there's data.") {
+                VStack(spacing: 0) {
+                    ForEach(alerts, id: \.0) { a in MetricRow(name: a.0, value: "\(a.1) in 30 days", delta: "check") }
+                    ForEach(rows, id: \.0) { r in MetricRow(name: r.0, value: r.1, delta: nil) }
+                }
+            }
+        }
     }
 }
 
@@ -271,8 +346,29 @@ struct WeightFoodPage: View {
                     Text("No weigh-ins yet. In the Omada app: Settings → Health Integration → Share with Health App, and turn on weight.").font(.system(size: 13))
                 }
             }
+            composition(keys)
         }
         .modifier(DrawIn(progress: $progress))
+    }
+
+    /// Fat vs lean change between the first and latest weigh-ins that include body fat.
+    @ViewBuilder private func composition(_ keys: [String]) -> some View {
+        let readings: [(String, Double, Double)] = keys.compactMap { k in
+            guard let r = model.record(k), let w = r.weightKg else { return nil }
+            if let bf = r.bodyFatPct { return (k, w, w * bf / 100) }
+            if let lean = r.leanMassKg { return (k, w, w - lean) }
+            return nil
+        }
+        if let first = readings.first, let last = readings.last, DayKey.daysBetween(first.0, last.0) >= 14 {
+            let fat = last.2 - first.2, lean = (last.1 - last.2) - (first.1 - first.2)
+            let lost = first.1 - last.1
+            Section9(title: "Fat or muscle", info: "From your scale's body-fat reading, so it shares the scale's error (often ±3%). The trend matters more than any single number. In a deficit, keeping lean loss under about a quarter of the total is a good sign; protein and strength training are the levers.",
+                     trailing: "since \(Fmt.dayTitle(first.0))") {
+                Trio(items: [("Fat", Fmt.signed(fat, 1) + " kg", nil), ("Lean", Fmt.signed(lean, 1) + " kg", nil),
+                             ("Lean share", lost > 0.5 ? "\(Int((max(-lean, 0) / lost * 100).rounded()))%" : "–",
+                              lost > 0.5 && -lean / lost > 0.25 ? "eat more protein" : nil)])
+            }
+        }
     }
 
     private func movingAverage(_ w: [(Date, Double)]) -> [(Date, Double)] {

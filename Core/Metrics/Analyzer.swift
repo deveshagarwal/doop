@@ -56,6 +56,7 @@ public struct Analysis: Sendable {
     public let weekly: WeeklyReport?
     public var suggestions: [Suggestion]
     public let habits: SleepHabits?
+    public var gait: GaitAlert? = nil
     public let computedAt: Date
 
     public static let empty = Analysis(scores: [:], orderedKeys: [], book: BaselineBook(days: [:]), effects: [], forecast: nil,
@@ -114,6 +115,8 @@ public enum Analyzer {
 
         // Habits: detected from data, then your answers on top.
         let calm = StressEnergy.calmHeartRate(days: days, before: today)
+        let extraThresholds = ExtraHabits.thresholds(days: days)
+        let factors = factors + ExtraHabits.factors(thresholds: extraThresholds)
         var dayFactors: [String: Set<String>] = [:]
         for k in keys {
             guard let d = days[k], let midnight = DayKey.date(from: k) else { continue }
@@ -123,6 +126,7 @@ public enum Analyzer {
                                               restingHR: d.restingHR, settings: settings, now: midnight.addingTimeInterval(24 * 3600))
             var f = AutoLog.factors(day: withStrain, previous: days[DayKey.addDays(k, -1)], nextMorning: days[DayKey.addDays(k, 1)],
                                     highStressMinutes: stress?.highStressMinutes)
+            f.formUnion(ExtraHabits.detect(d, thresholds: extraThresholds))
             if let j = journal[k] {
                 f.formUnion(j.factors)
                 f.subtract(j.denied)
@@ -216,6 +220,7 @@ public enum Analyzer {
                                 costPerStrain: WorkoutCost.pointsPerStrain(days: costRows),
                                 weekly: weeklyReport(keys: keys, scores: scores, days: days, effects: effects, today: today),
                                 suggestions: [], habits: habits, computedAt: now)
+        analysis.gait = GaitWatch.check(days: days, keys: keys.filter { $0 <= today })
         analysis.suggestions = Suggestions.rank(analysis)
         return analysis
     }

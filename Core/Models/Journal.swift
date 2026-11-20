@@ -39,7 +39,7 @@ public struct JournalFactor: Codable, Hashable, Sendable, Identifiable {
         .init(id: "high_stress", label: "Stressful day", symbol: "waveform.path.ecg", source: "Heart rate vs movement"),
     ]
 
-    public static func named(_ id: String) -> JournalFactor? { all.first { $0.id == id } }
+    public static func named(_ id: String) -> JournalFactor? { all.first { $0.id == id } ?? ExtraHabits.factor(id) }
 }
 
 /// Answers you gave (only ever the one daily question) plus anything you chose to add.
