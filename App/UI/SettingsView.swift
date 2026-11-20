@@ -94,7 +94,10 @@ struct SettingsView: View {
             .background(Ember.ink)
             .navigationTitle("Settings")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .onAppear { maxHR = model.settings.maxHROverride.map { "\(Int($0))" } ?? "" }
+            .onAppear {
+                maxHR = model.settings.maxHROverride.map { "\(Int($0))" } ?? ""
+                clientID = model.settings.googleClientID
+            }
         }
         .preferredColorScheme(.dark)
         .tint(Ember.ember)
